@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from melt.geometry import load_glyphs, sample_glyphs
-from melt.wff import emit_digit
+from melt.wff import emit_digit, coordinate_for_digit, number
 from generate_watchface import generate, time_digits
 
 
@@ -70,6 +70,21 @@ class ExportTest(unittest.TestCase):
             for i, (a, b) in enumerate(geometry.edges):
                 line = lines[i]
                 self.assertGreater(float(line.find('Stroke').get('thickness')), 0)
+                widths = [number(geometry.points[str(d)][a][2] + geometry.points[str(d)][b][2])
+                          for d in range(10)]
+                stroke = line.find('Stroke')
+                self.assertEqual(stroke.get('thickness'), widths[0])
+                width_transform = stroke.find('Transform')
+                if len(set(widths)) > 1:
+                    self.assertEqual(width_transform.get('value'),
+                                     coordinate_for_digit('[MINUTE_UNITS_DIGIT]', widths))
+                    self.assertEqual(width_transform.find('Animation') is not None, animated)
+                for source, target in ((9, 0), (5, 0), (8, 1)):
+                    for u in (0, .25, .5, .75, 1):
+                        actual = (1-u)*float(widths[source]) + u*float(widths[target])
+                        expected = sum((1-u)*geometry.points[str(source)][node][2]
+                                       + u*geometry.points[str(target)][node][2] for node in (a, b))
+                        self.assertLessEqual(abs(actual - expected), .000051)
                 transforms = {t.get('target'): t for t in line.findall('Transform')}
                 for node, axis, attr in ((a, 0, 'startX'), (a, 1, 'startY'), (b, 0, 'endX'), (b, 1, 'endY')):
                     values = tables[node, axis]

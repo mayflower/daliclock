@@ -9,7 +9,7 @@ TRANSITIONS = [(i, (i + 1) % 10) for i in range(10)] + [(5, 0), (2, 0), (8, 1)]
 def lines_svg(sampled, points, color='#fff'):
     return ''.join(f'<line x1="{points[a][0]:.4f}" y1="{points[a][1]:.4f}" '
                    f'x2="{points[b][0]:.4f}" y2="{points[b][1]:.4f}" '
-                   f'stroke="{color}" stroke-width="{sampled.stroke}" stroke-linecap="round"/>'
+                   f'stroke="{color}" stroke-width="{points[a][2] + points[b][2]:.4f}" stroke-linecap="round"/>'
                    for a, b in sampled.edges)
 
 
@@ -45,7 +45,7 @@ def overview(sampled):
 
 def player(sampled):
     data = json.dumps({'points': sampled.points, 'edges': sampled.edges,
-                       'box': sampled.box, 'stroke': sampled.stroke}, separators=(',', ':'))
+                       'box': sampled.box}, separators=(',', ':'))
     return '''<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Melt · geometry preview</title><style>
@@ -68,7 +68,7 @@ svg.setAttribute('viewBox',`0 0 ${data.box.join(' ')}`);
 let animation=0;
 function draw(){const u=Number(range.value),a=data.points[from.value],b=data.points[to.value],p={};
 for(const id in a)p[id]=a[id].map((x,j)=>(1-u)*x+u*b[id][j]);
-svg.innerHTML=data.edges.map(([a,b])=>`<line x1="${p[a][0]}" y1="${p[a][1]}" x2="${p[b][0]}" y2="${p[b][1]}" stroke="white" stroke-width="${data.stroke}" stroke-linecap="round"/>`).join('');
+svg.innerHTML=data.edges.map(([a,b])=>`<line x1="${p[a][0]}" y1="${p[a][1]}" x2="${p[b][0]}" y2="${p[b][1]}" stroke="white" stroke-width="${p[a][2]+p[b][2]}" stroke-linecap="round"/>`).join('');
 if(nodes.checked)svg.innerHTML+=Object.values(p).map(([x,y])=>`<circle cx="${x}" cy="${y}" r=".7" fill="#ec5987"/>`).join('');
 document.querySelector('#value').value=u.toFixed(3);}
 for(const el of [from,to,range,nodes])el.addEventListener('input',()=>{cancelAnimationFrame(animation);draw()});

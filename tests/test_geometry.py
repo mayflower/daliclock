@@ -7,7 +7,7 @@ import sys
 import unittest
 
 import cairosvg
-from PIL import Image
+from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -22,6 +22,21 @@ class GeometryTest(unittest.TestCase):
         cls.glyphs = load_glyphs(ROOT / 'assets/glyphs/melt.json')
         cls.sampled = sample_glyphs(cls.glyphs, .9, .35)
 
+    def test_original_xdaliclock_silhouettes(self):
+        # Compare rendered exported strokes to the independently stored upstream
+        # vector outlines. This catches real font changes, including serif loss.
+        sampled = sample_glyphs(self.glyphs)
+        for digit in range(10):
+            original = Image.open(io.BytesIO(cairosvg.svg2png(
+                url=str(ROOT / f'assets/glyphs/xdaliclock/{digit}.svg')))).getchannel('A')
+            rendered = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=digit_svg(
+                sampled, sampled.points[str(digit)], (400, 640)).encode()))).convert('L')
+            original = original.point(lambda v: 255 if v >= 128 else 0)
+            rendered = rendered.point(lambda v: 255 if v >= 128 else 0)
+            intersection = sum(ImageChops.darker(original, rendered).histogram()[128:])
+            union = sum(ImageChops.lighter(original, rendered).histogram()[128:])
+            self.assertGreaterEqual(intersection / union, .98, digit)
+
     def test_all_pairs_and_parametric_correspondence(self):
         g, s = self.glyphs, self.sampled
         self.assertLessEqual(s.error_bound, .35)
@@ -30,7 +45,7 @@ class GeometryTest(unittest.TestCase):
                 for step in range(21):
                     u = step / 20
                     points = interpolate(s, a, b, u)
-                    validate_geometry(points, s.edges, s.box, s.stroke)
+                    validate_geometry(points, s.edges, s.box)
                     for curve in g.curves:
                         cubic = [mix(p, q, u) for p, q in zip(g.cubic(curve, a), g.cubic(curve, b))]
                         for node, t in zip(s.sample_ids[curve['id']], s.parameters[curve['id']]):
@@ -45,7 +60,7 @@ class GeometryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_glyphs(broken)
         broken = copy.deepcopy(self.glyphs)
-        broken.curves[1]['controls']['0'][0][0] += 5
+        broken.curves[1]['controls']['0'][0][2] = -1
         with self.assertRaises(ValueError):
             validate_glyphs(broken)
         points = dict(self.sampled.points['0'])
@@ -70,8 +85,8 @@ class GeometryTest(unittest.TestCase):
     def test_rasterized_strokes_remain_connected(self):
         # Eight-connected foreground at half intensity, without dilation. Test
         # main/seconds/ambient strokes at the emulator and a 384px display size.
-        for scale, stroke in ((.9, 12), (.48, 12), (.9, 8)):
-            s = sample_glyphs(self.glyphs, scale, .35, stroke)
+        for scale in (.9, .48):
+            s = sample_glyphs(self.glyphs, scale, .35)
             for display in (384, 454):
                 size = tuple(round(v * display / 450) for v in s.box)
                 for a, b in TRANSITIONS:
@@ -94,8 +109,8 @@ class GeometryTest(unittest.TestCase):
                         if remaining:
                             out = ROOT / 'build/test-failures'
                             out.mkdir(parents=True, exist_ok=True)
-                            im.save(out / f'{a}-{b}-{u}-{scale}-{stroke}-{display}.png')
-                        self.assertFalse(remaining, (a, b, u, scale, stroke, display))
+                            im.save(out / f'{a}-{b}-{u}-{scale}-{display}.png')
+                        self.assertFalse(remaining, (a, b, u, scale, display))
 
     def test_ambient_weighted_pixel_activation(self):
         # WO-P7 uses linearly weighted RGB intensity, not a count of lit pixels.
@@ -103,8 +118,7 @@ class GeometryTest(unittest.TestCase):
         # 12-hour times with the leading position hidden. This is geometry-level
         # raster evidence, not a substitute for native ambient rendering tests.
         cfg = json.loads((ROOT / 'config/melt.json').read_text())
-        s = sample_glyphs(self.glyphs, cfg['main']['scale'], cfg['tolerance'],
-                         cfg['ambient']['stroke'])
+        s = sample_glyphs(self.glyphs, cfg['main']['scale'], cfg['tolerance'])
         argb = cfg['ambient']['color'].removeprefix('#')
         self.assertEqual(argb[:2], 'FF')
         color = '#' + argb[2:]

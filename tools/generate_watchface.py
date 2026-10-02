@@ -45,7 +45,20 @@ def clock(parent, geometry, cfg, animated, namespace, color):
     for expression in [HOUR, '[MINUTE]', '([IS_24_HOUR_MODE] ? "" : [AMPM_STRING])']:
         add(reader, 'Parameter', expression=expression)
     for i, expression in enumerate(TIME):
-        part, _, _ = emit_digit(main, geometry, expression, (cfg['positions'][i], 0), color, animated, f'{namespace}_d{i}')
+        if animated:
+            part, _, _ = emit_digit(main, geometry, expression, (cfg['positions'][i], 0), color,
+                                   True, f'{namespace}_d{i}', max_digit=(2, 9, 5, 9)[i])
+        else:
+            part = group(main, f'{namespace}_d{i}', cfg['positions'][i], 0,
+                         int(geometry.box[0]), int(geometry.box[1]))
+            condition = add(part, 'Condition')
+            expressions = add(condition, 'Expressions')
+            for digit in range((2, 9, 5, 9)[i] + 1):
+                add(expressions, 'Expression', name=f'd{digit}').text = f'({expression}) == {digit}'
+                branch = add(condition, 'Compare', expression=f'd{digit}')
+                image = add(branch, 'PartImage', x=0, y=0,
+                            width=int(geometry.box[0]), height=int(geometry.box[1]))
+                add(image, 'Image', resource=f'ambient_{digit}')
         if i == 0:
             add(part, 'Transform', target='alpha', value='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10 ? 255 : 0)')
     colon = add(main, 'PartDraw', name=f'{namespace}_colon', x=187, y=0, width=14, height=144)
@@ -60,7 +73,16 @@ def generate(output):
     glyphs = load_glyphs(ROOT / 'assets/glyphs/melt.json')
     main = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
     seconds = sample_glyphs(glyphs, cfg['seconds']['scale'], cfg['tolerance'])
-    ambient = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'], cfg['ambient']['stroke'])
+    ambient = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
+    # Always-on has no morph: cache the exact exported geometry, not an active
+    # frame, and let native time conditions choose the current static digit.
+    (output / 'drawable').mkdir(parents=True, exist_ok=True)
+    for digit in range(10):
+        w, h = ambient.box
+        svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w * 2}" height="{h * 2}" '
+               f'viewBox="0 0 {w} {h}">' + lines_svg(ambient, ambient.points[str(digit)],
+               '#' + cfg['ambient']['color'][3:]) + '</svg>')
+        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/ambient_{digit}.png'))
     root = ET.Element('WatchFace', width='450', height='450', clipShape='CIRCLE')
     configs = add(root, 'UserConfigurations')
     for name, default in [('show_seconds', 'TRUE'), ('show_date', 'FALSE')]:
@@ -78,7 +100,7 @@ def generate(output):
     yes = add(selection, 'BooleanOption', id='TRUE')
     sec = group(yes, 'seconds', cfg['seconds']['x'], cfg['seconds']['y'], 100, 77)
     for i, expression in enumerate(['[SECOND_TENS_DIGIT]', '[SECOND_UNITS_DIGIT]']):
-        emit_digit(sec, seconds, expression, (cfg['seconds']['positions'][i], 0), COLOR, True, f'seconds_d{i}')
+        emit_digit(sec, seconds, expression, (cfg['seconds']['positions'][i], 0), COLOR, True, f'seconds_d{i}', max_digit=(5, 9)[i])
     group(add(selection, 'BooleanOption', id='FALSE'), 'seconds_off')
     selection = add(active, 'BooleanConfiguration', id='show_date')
     date = group(add(selection, 'BooleanOption', id='TRUE'), 'date')

@@ -5,32 +5,30 @@ xdaliclock. Target: Watch Face Format 4 on Wear OS 6 / API 36 or newer.
 
 ## Status
 
-The shared geometry, offline morph preview, WFF exporter, native settings,
-and Android resource build are implemented. The debug APK installs and runs on
-the Wear OS 6 emulator; the release AAB is unsigned.
+The digits are derived from XDaliClock's original `dalifont.ai` artwork,
+including its thick–thin contrast and serifs. The original vectors, permission
+notice, and provenance are in [assets/glyphs/xdaliclock](assets/glyphs/xdaliclock/SOURCE.md).
+The connected line approximation has 98.3–99.4% silhouette overlap with the
+original at 4× resolution; it is not pixel-exact at arbitrarily large sizes.
 
-Fixed: ambient reference consumers could lag behind their owners at minute
-changes on Wear OS 6. Static consumers now also subscribe to their owner's time
-source, while taking the coordinate exclusively from their own ambient reference.
-Native captures passed 20:10 → 20:11 and the four-digit 09:59 → 10:00 rollover.
+Active digits interpolate both position and stroke width with native 650 ms
+animations. Always-on uses build-rendered static images of the same geometry,
+selected by native current-time conditions. This avoids duplicating thousands
+of static expressions: an all-vector ambient version exhausted the emulator's
+192 MB Java heap even though the official graphics-memory evaluator passed.
 
-Native checks covered hour carries, midnight, noon AM/PM, the single-digit
-12-hour layout, colors, persisted seconds/date options, ambient and waking,
-and timezone changes. A further 110-frame capture spans a minute rollover.
-The offline transition overview and native intermediate forms were reviewed.
+Nine Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
+and official APK/AAB memory checks pass. The debug APK is debug-signed;
+the release AAB is unsigned.
 
-On this Mac, the emulator's Skia OpenGL backend intermittently omitted unchanged
-digits and even content in the system charging screen. Use the tested software
-Vulkan configuration in SETUP.md: the subsequent timezone, rollover, editor,
-and ambient checks retained the expected content. This is an emulator setup
-limitation; other graphics backends have not passed the same checks.
-
-An isolated 16.6-second native-renderer `dumpsys gfxinfo` sample recorded 180
-frames with CPU/HWUI histogram p50/p95/p99 of 11/15/20 ms. These are emulator
-measurements, not physical-watch performance or proof of sustained 30 fps.
-The GPU timing histogram was empty, so no GPU percentiles are reported.
-Physical-watch performance, accessibility service behavior, and battery use
-are not tested. No battery savings are claimed.
+The current font was rendered on the Wear OS 6 emulator with Skia OpenGL.
+Native captures show the active font, seconds, the 09:41 → 09:42 rollover,
+always-on, and wake. However, OpenGL drops unchanged ambient content after a
+minute update; the previously working software Vulkan backend stalls with
+this denser font. The current native rendering check is therefore **partial**.
+This build needs further renderer/performance work before release. Physical-watch
+performance, accessibility-service behavior, and battery use remain untested;
+no frame-rate or battery-saving claims are made.
 
 ## Start here
 
@@ -68,16 +66,18 @@ tools/validate_wff.sh
 
 The build runs the resource generator automatically. Open `build/preview/index.html`
 for the offline player and `build/preview/overview.svg` for all transition samples.
+`build/preview/classic-comparison.png` pairs each original digit with Melt’s output.
 The preview is a development tool; it is not proof of native renderer behavior.
 The geometry tests include a conservative weighted ambient-pixel activation
-bound across all digit combinations: 3.276% at 384 px and 3.281% at 454 px, below
+bound across all digit combinations at 384 px and 454 px, below
 the [15% requirement](https://developer.android.com/docs/quality-guidelines/wear-app-quality#performance-and-functionality).
 This uses rasterized gray strokes and RGB intensity, not a count of nonblack
 pixels.
 
-The generated scene contains 1,326 lines, 1,504 animated coordinates, and 2,632
-references. XML size is 2,439,039 bytes. The official memory evaluator reports
-2,371,712 bytes active and 810,000 bytes ambient; both APK and AAB pass its limits.
+The generated scene contains 3,774 lines, 11,310 native animations (coordinates
+and thickness), and 7,536 references. XML size is 7,955,192 bytes. The official
+memory evaluator reports 2,790,064 bytes active and 810,000 bytes ambient;
+these figures do not measure renderer Java-heap use or runtime performance.
 
 Artifacts:
 
@@ -106,4 +106,4 @@ The installed watchface is a resource-only package rendered by Wear OS.
 
 The product shows HH:MM, optional morphing seconds enabled by default, an
 optional date, three color themes, system 12/24-hour time, and German/English
-editor labels. Always-on shows the current static hours and minutes.
+editor labels. Always-on selects the current static hours and minutes from build-rendered glyphs.

@@ -15,25 +15,32 @@ def number(value):
 def coordinate_for_digit(expression, values):
     if len(set(values)) == 1:
         return values[0]
-    result = values[9]
-    for digit in reversed(range(9)):
+    result = values[-1]
+    for digit in reversed(range(len(values) - 1)):
         result = f'(({expression}) == {digit} ? {values[digit]} : {result})'
     return result
 
 
 def emit_digit(parent, geometry, digit_expression, position, color_expression,
-               animated, namespace):
+               animated, namespace, max_digit=9):
     part = element(parent, 'PartDraw', name=namespace, x=position[0], y=position[1],
                    width=math.ceil(geometry.box[0]), height=math.ceil(geometry.box[1]))
     degree = Counter(node for edge in geometry.edges for node in edge)
-    tables = {(node, axis): [number(geometry.points[str(d)][node][axis]) for d in range(10)]
+    tables = {(node, axis): [number(geometry.points[str(d)][node][axis]) for d in range(max_digit + 1)]
               for node in geometry.points['0'] for axis in range(2)}
     owners = {}
     for index, (a, b) in enumerate(geometry.edges):
         endpoints = [(a, 0, 'startX'), (a, 1, 'startY'),
                      (b, 0, 'endX'), (b, 1, 'endY')]
         line = element(part, 'Line', **{attr: tables[node, axis][0] for node, axis, attr in endpoints})
-        element(line, 'Stroke', color=color_expression, thickness=number(geometry.stroke), cap='ROUND')
+        widths = [number(geometry.points[str(d)][a][2] + geometry.points[str(d)][b][2])
+                  for d in range(max_digit + 1)]
+        stroke = element(line, 'Stroke', color=color_expression, thickness=widths[0], cap='ROUND')
+        if len(set(widths)) > 1:
+            transform = element(stroke, 'Transform', target='thickness',
+                                value=coordinate_for_digit(digit_expression, widths))
+            if animated:
+                element(transform, 'Animation', duration='0.65', interpolation='LINEAR', fps='30', repeat='0')
         for node, axis, attr in endpoints:
             values = tables[node, axis]
             if len(set(values)) == 1:

@@ -3,6 +3,6 @@
   "tolerance": 0.35,
   "main": {"scale": 0.9, "x": 31, "y": 130, "quiet_y": 153, "positions": [0, 93, 205, 298]},
   "seconds": {"scale": 0.48, "x": 175, "y": 300, "positions": [0, 52]},
-  "ambient": {"color": "#FF888888", "stroke": 8},
+  "ambient": {"color": "#FF888888"},
   "animation": {"duration": 0.65, "fps": 30}
 }

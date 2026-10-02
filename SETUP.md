@@ -64,10 +64,13 @@ invocations, exercised against the sample artifacts below.
 A dedicated round 454 x 454 device named `Melt_Wear_OS_6` is configured.
 It booted completely, reported API 36 and the Wear watchface runtime, displayed
 its default watchface, and successfully installed the sample APK through ADB.
-For Melt, use software graphics with the guest Skia Vulkan renderer.
+The original, simpler Melt geometry was tested with software graphics and the
+guest Skia Vulkan renderer. The current XDaliClock-derived font stalls on this
+backend; OpenGL displays it but still drops unchanged ambient content. See
+README.md for the current partial native-validation status.
 The initial SwiftShader setup could boot and install packages, but subsequent
 Melt and system-UI checks exposed disappearing static content with Skia OpenGL.
-The tested combination below uses Lavapipe for Vulkan on this Mac.
+The earlier tested combination below uses Lavapipe for Vulkan on this Mac.
 
 ```sh
 # Run in a separate terminal; remove -no-window to show the emulator window.
