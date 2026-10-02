@@ -1,0 +1,14 @@
+# Local development environment
+.venv/
+.env.local.sh
+.env
+.env.*
+!.env.example
+local.properties
+__pycache__/
+*.py[cod]
+.gradle/
+**/build/
+.DS_Store
+*.jks
+*.keystore
