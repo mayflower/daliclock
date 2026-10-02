@@ -1,0 +1,27 @@
+plugins { id 'com.android.application' }
+
+def generatedRes = layout.buildDirectory.dir('generated/melt/res')
+def generateMelt = tasks.register('generateMelt', Exec) {
+    inputs.files(rootProject.fileTree('assets/glyphs'), rootProject.file('config/melt.json'), rootProject.fileTree('tools') { include '**/*.py' })
+    outputs.dir(generatedRes)
+    workingDir rootProject.projectDir
+    commandLine providers.gradleProperty('pythonExecutable').getOrElse('python3'), 'tools/generate_watchface.py', '--output', generatedRes.get().asFile.absolutePath
+}
+android {
+    namespace 'de.mayflower.melt'
+    compileSdk 36
+    buildToolsVersion '36.0.0'
+    defaultConfig {
+        applicationId 'de.mayflower.melt'
+        minSdk 36
+        targetSdk 36
+        versionCode 1
+        versionName '1.0'
+    }
+    buildTypes {
+        debug { minifyEnabled true; shrinkResources false }
+        release { minifyEnabled true; shrinkResources false }
+    }
+    sourceSets.main.res.srcDir(generatedRes)
+}
+tasks.named('preBuild').configure { dependsOn(generateMelt) }

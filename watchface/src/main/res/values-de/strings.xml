@@ -1,0 +1,8 @@
+<resources>
+    <string name="show_seconds_label">Sekunden anzeigen</string>
+    <string name="show_date_label">Datum anzeigen</string>
+    <string name="color_theme_label">Farbe</string>
+    <string name="white_label">Weiß</string>
+    <string name="green_label">Grün</string>
+    <string name="amber_label">Amber</string>
+</resources>

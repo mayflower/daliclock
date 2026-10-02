@@ -1,8 +1,7 @@
 # Melt development environment
 
-Prepared and exercised on 2026-10-02 on this Apple Silicon Mac. This directory
-contains repository and environment setup only; the Melt application has not
-been implemented yet.
+Prepared and exercised on 2026-10-02 on this Apple Silicon Mac. This document records the environment setup. See README.md for the current
+Melt implementation status and application build commands.
 
 ## Use the installed tools
 
@@ -38,8 +37,8 @@ configuration. Python graphics dependencies are pinned in `requirements-dev.txt`
 
 The JDK/Gradle/AGP combination follows the
 [official AGP 8.13 compatibility table](https://developer.android.com/build/releases/agp-8-13-0-release-notes).
-The application build must pin these versions and SDK Build Tools 36.0.0 when
-implemented; it should generate its own Gradle wrapper.
+The application build pins these versions and SDK Build Tools 36.0.0 and
+includes the Gradle 8.13 wrapper.
 
 ## Official WFF tools
 
@@ -65,21 +64,31 @@ invocations, exercised against the sample artifacts below.
 A dedicated round 454 x 454 device named `Melt_Wear_OS_6` is configured.
 It booted completely, reported API 36 and the Wear watchface runtime, displayed
 its default watchface, and successfully installed the sample APK through ADB.
-Use SwiftShader: the initial `-gpu auto` run produced graphics readback errors
-and stayed offline in ADB.
+For Melt, use software graphics with the guest Skia Vulkan renderer.
+The initial SwiftShader setup could boot and install packages, but subsequent
+Melt and system-UI checks exposed disappearing static content with Skia OpenGL.
+The tested combination below uses Lavapipe for Vulkan on this Mac.
 
 ```sh
 # Run in a separate terminal; remove -no-window to show the emulator window.
-emulator -avd Melt_Wear_OS_6 -port 5580 -gpu swiftshader \
+emulator -avd Melt_Wear_OS_6 -port 5580 -gpu software \
   -no-window -no-audio -no-snapshot
 
 # Target this emulator explicitly; a physical Android phone may also be attached.
 adb -s emulator-5580 shell getprop sys.boot_completed
+adb -s emulator-5580 shell setprop debug.hwui.renderer skiavk
+adb -s emulator-5580 shell am force-stop com.google.wear.watchface.runtime
 adb -s emulator-5580 install -r path/to/watchface.apk
-adb -s emulator-5580 emu kill
+# Select another watchface in the picker, then select Melt.
+adb -s emulator-5580 shell dumpsys gfxinfo com.google.wear.watchface.runtime
+# Confirm Pipeline=Skia (Vulkan) in that output.
 ```
 
-The emulator was shut down after the setup checks. A physical Wear OS watch was
+Set the renderer after each cold boot, before selecting Melt; the property is
+not persistent. If Melt was already selected before stopping the runtime,
+switch to a different face and back to recreate its service. Allow initialization
+to finish before capturing. Stop the emulator with
+`adb -s emulator-5580 emu kill` when finished. A physical Wear OS watch was
 not connected. The pre-existing phone AVD has a missing API 36.1 phone image;
 that unrelated AVD was left unchanged.
 
@@ -103,7 +112,8 @@ build types to remove generated classes while preserving watchface resources.
 Both artifacts passed the official memory evaluator; the sample XML passed
 the version-4 validator. SVG-to-PNG rendering and PNG loading also worked.
 
-These artifacts are environment probes, not Melt. Melt's geometry, animation,
-editor behavior, ambient behavior, pixel activation, and hardware performance
-remain to be implemented and tested. The default emulator watchface screenshot
+These artifacts are environment probes, not Melt. They do not establish Melt's
+geometry, animation, editor behavior, ambient behavior, pixel activation, or
+hardware performance. See README.md for implementation and runtime-test status.
+The default emulator watchface screenshot
 is saved at `$MELT_TOOLS/wear-os-6.png`.

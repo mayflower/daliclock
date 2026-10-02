@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Melt</string>
+    <integer name="wff_version">4</integer>
+    <string name="show_seconds_label">Show seconds</string>
+    <string name="show_date_label">Show date</string>
+    <string name="color_theme_label">Color</string>
+    <string name="white_label">White</string>
+    <string name="green_label">Green</string>
+    <string name="amber_label">Amber</string>
+    <string name="time_accessibility">%1$d:%2$02d %3$s</string>
+</resources>
