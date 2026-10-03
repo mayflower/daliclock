@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import cairosvg
-from melt.geometry import load_glyphs, sample_glyphs
-from melt.preview import lines_svg
-from melt.wff import element as add, emit_digit
+from daliclock.geometry import load_glyphs, sample_glyphs
+from daliclock.preview import lines_svg
+from daliclock.wff import element as add, emit_digit
 
 ROOT = Path(__file__).resolve().parents[1]
 HOUR = '([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12])'
@@ -67,8 +67,8 @@ def clock(parent, geometry, cfg, animated, namespace, color):
 
 
 def generate(output):
-    cfg = json.loads((ROOT / 'config/melt.json').read_text())
-    glyphs = load_glyphs(ROOT / 'assets/glyphs/melt.json')
+    cfg = json.loads((ROOT / 'config/daliclock.json').read_text())
+    glyphs = load_glyphs(ROOT / 'assets/glyphs/daliclock.json')
     main = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
     seconds = sample_glyphs(glyphs, cfg['seconds']['scale'], cfg['tolerance'])
     ambient = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
@@ -140,5 +140,5 @@ def generate(output):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--output', type=Path, default=ROOT / 'watchface/build/generated/melt/res')
+    parser.add_argument('--output', type=Path, default=ROOT / 'watchface/build/generated/daliclock/res')
     generate(parser.parse_args().output)

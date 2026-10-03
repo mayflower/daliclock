@@ -1,7 +1,7 @@
-# Melt development environment
+# Daliclock development environment
 
 Prepared and exercised on 2026-10-02 on this Apple Silicon Mac. This document records the environment setup. See README.md for the current
-Melt implementation status and application build commands.
+Daliclock implementation status and application build commands.
 
 ## Use the installed tools
 
@@ -21,7 +21,7 @@ configuration. Python graphics dependencies are pinned in `requirements-dev.txt`
 | Component | Version / location |
 | --- | --- |
 | JDK | Homebrew OpenJDK 17.0.20.1 |
-| Gradle for Melt | 8.13, `$MELT_TOOLS/gradle-8.13` |
+| Gradle for Daliclock | 8.13, `$DALICLOCK_TOOLS/gradle-8.13` |
 | Android Gradle Plugin | 8.13.2, downloaded and tested in the sample build |
 | Android SDK | `$ANDROID_HOME` = `/Users/johann/Library/Android/sdk` |
 | Android platform | API 36, revision 2 |
@@ -42,9 +42,9 @@ includes the Gradle 8.13 wrapper.
 
 ## Official WFF tools
 
-`$MELT_TOOLS` is `/Users/johann/.local/share/melt-tools`.
+`$DALICLOCK_TOOLS` is `/Users/johann/.local/share/melt-tools`.
 The [Google watchface tools](https://github.com/google/watchface) checkout is
-`$MELT_TOOLS/watchface`, detached at commit
+`$DALICLOCK_TOOLS/watchface`, detached at commit
 `b6cdda0acd3e4c5d0be5624fcdc01209380029d1`.
 Both JARs were built using the upstream Gradle 8.9 wrappers and JDK 17.
 The WFF 4 Line and Stroke XSD blob hashes match those in the prompt set.
@@ -61,10 +61,12 @@ invocations, exercised against the sample artifacts below.
 
 ## Wear OS emulator
 
-A dedicated round 454 x 454 device named `Melt_Wear_OS_6` is configured.
+The existing round 454 x 454 AVD retains its machine-local name
+`Melt_Wear_OS_6`; it is used to test Daliclock. The installed tools likewise
+retain their existing `melt-tools` directory.
 It booted completely, reported API 36 and the Wear watchface runtime, displayed
 its default watchface, and successfully installed the sample APK through ADB.
-Melt's original-font renderer is tested with **host Vulkan** on this Apple M4:
+Daliclock's original-font renderer is tested with **host Vulkan** on this Apple M4:
 `-gpu host` selects MoltenVK, and `debug.hwui.renderer=skiavk` selects Vulkan
 inside Android. The local AVD defaults to host graphics; keep both settings. The software Vulkan backends (Lavapipe and
 SwiftShader) stall or crash in Skia path tessellation with the detailed font.
@@ -86,14 +88,14 @@ adb -s emulator-5580 shell getprop sys.boot_completed
 adb -s emulator-5580 shell setprop debug.hwui.renderer skiavk
 adb -s emulator-5580 shell am force-stop com.google.wear.watchface.runtime
 adb -s emulator-5580 install -r path/to/watchface.apk
-# Select another watchface in the picker, then select Melt.
+# Select another watchface in the picker, then select Daliclock.
 adb -s emulator-5580 shell dumpsys gfxinfo com.google.wear.watchface.runtime
 # Confirm Pipeline=Skia (Vulkan) in that output.
 ```
 
-Set the renderer after each cold boot, before selecting Melt; the property is
+Set the renderer after each cold boot, before selecting Daliclock; the property is
 not persistent. The host GLES driver reports only GLES 3.0 on this Mac, so do
-not rely on the default OpenGL renderer for this API 36 image. If Melt was
+not rely on the default OpenGL renderer for this API 36 image. If Daliclock was
 already selected before stopping the runtime,
 switch to a different face and back to recreate its service. Allow initialization
 to finish before capturing. Stop the emulator with
@@ -104,16 +106,16 @@ that unrelated AVD was left unchanged.
 ## Setup verification
 
 A copy of Google's sample was built outside this workspace at
-`$MELT_TOOLS/build-smoke`, using API 36 and WFF 4. Both builds succeeded:
+`$DALICLOCK_TOOLS/build-smoke`, using API 36 and WFF 4. Both builds succeeded:
 
 ```sh
-gradle -p "$MELT_TOOLS/build-smoke" :app:assembleDebug :app:bundleRelease
+gradle -p "$DALICLOCK_TOOLS/build-smoke" :app:assembleDebug :app:bundleRelease
 ```
 
 Artifacts:
 
-- `$MELT_TOOLS/build-smoke/app/build/outputs/apk/debug/app-debug.apk`
-- `$MELT_TOOLS/build-smoke/app/build/outputs/bundle/release/app-release.aab`
+- `$DALICLOCK_TOOLS/build-smoke/app/build/outputs/apk/debug/app-debug.apk`
+- `$DALICLOCK_TOOLS/build-smoke/app/build/outputs/bundle/release/app-release.aab`
 
 The APK is debug-signed; the release AAB is unsigned. Both contain no DEX code.
 The sample needed `minifyEnabled true` with `shrinkResources false` for both
@@ -121,8 +123,8 @@ build types to remove generated classes while preserving watchface resources.
 Both artifacts passed the official memory evaluator; the sample XML passed
 the version-4 validator. SVG-to-PNG rendering and PNG loading also worked.
 
-These artifacts are environment probes, not Melt. They do not establish Melt's
+These artifacts are environment probes, not Daliclock. They do not establish Daliclock's
 geometry, animation, editor behavior, ambient behavior, pixel activation, or
 hardware performance. See README.md for implementation and runtime-test status.
 The default emulator watchface screenshot
-is saved at `$MELT_TOOLS/wear-os-6.png`.
+is saved at `$DALICLOCK_TOOLS/wear-os-6.png`.

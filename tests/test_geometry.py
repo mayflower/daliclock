@@ -11,15 +11,16 @@ from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
-from melt.geometry import (bezier, interpolate, load_glyphs, mix, sample_glyphs,
+from daliclock.geometry import (bezier, interpolate, load_glyphs, mix, sample_glyphs,
                            validate_geometry, validate_glyphs)
-from melt.preview import TRANSITIONS, digit_svg, lines_svg
+from daliclock.animation import eased_progress
+from daliclock.preview import TRANSITIONS, digit_svg, lines_svg
 
 
 class GeometryTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.glyphs = load_glyphs(ROOT / 'assets/glyphs/melt.json')
+        cls.glyphs = load_glyphs(ROOT / 'assets/glyphs/daliclock.json')
         cls.sampled = sample_glyphs(cls.glyphs, .9, .35)
 
     def test_original_xdaliclock_silhouettes(self):
@@ -43,7 +44,7 @@ class GeometryTest(unittest.TestCase):
         for a in range(10):
             for b in range(10):
                 for step in range(21):
-                    u = step / 20
+                    u = eased_progress(step / 20)
                     points = interpolate(s, a, b, u)
                     validate_geometry(points, s.edges, s.box)
                     for curve in g.curves:
@@ -53,6 +54,23 @@ class GeometryTest(unittest.TestCase):
                             self.assertLess(math.dist(points[node], expected), 1e-10)
         for d in range(10):
             self.assertEqual(interpolate(s, d, d, .5), s.points[str(d)])
+
+    def test_viscous_easing_stays_within_exact_targets(self):
+        self.assertEqual(eased_progress(0), 0)
+        self.assertEqual(eased_progress(1), 1)
+        self.assertLess(eased_progress(.25), .1)
+        self.assertGreater(eased_progress(.75), .9)
+        # Overshoot left persistent bulges in the native renderer. Check the
+        # actual timing function throughout the transition, not only endpoints.
+        previous = 0
+        for step in range(1001):
+            progress = eased_progress(step / 1000)
+            self.assertGreaterEqual(progress, previous)
+            self.assertLessEqual(progress, 1)
+            previous = progress
+        for invalid in (-.001, 1.001, math.nan):
+            with self.assertRaises(ValueError):
+                interpolate(self.sampled, 1, 2, invalid)
 
     def test_broken_join_and_swapped_ids_are_detected(self):
         broken = copy.deepcopy(self.glyphs)
@@ -90,7 +108,7 @@ class GeometryTest(unittest.TestCase):
             for display in (384, 454):
                 size = tuple(round(v * display / 450) for v in s.box)
                 for a, b in TRANSITIONS:
-                    for u in (0, .25, .5, .75, 1):
+                    for u in [eased_progress(t) for t in (0, .25, .5, .75, 1)]:
                         svg = digit_svg(s, interpolate(s, a, b, u), size)
                         im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg.encode()))).convert('L')
                         foreground = {(x, y) for y in range(im.height) for x in range(im.width)
@@ -117,7 +135,7 @@ class GeometryTest(unittest.TestCase):
         # Sum each position's brightest digit: this bounds every HH:MM, including
         # 12-hour times with the leading position hidden. This is geometry-level
         # raster evidence, not a substitute for native ambient rendering tests.
-        cfg = json.loads((ROOT / 'config/melt.json').read_text())
+        cfg = json.loads((ROOT / 'config/daliclock.json').read_text())
         s = sample_glyphs(self.glyphs, cfg['main']['scale'], cfg['tolerance'])
         argb = cfg['ambient']['color'].removeprefix('#')
         self.assertEqual(argb[:2], 'FF')

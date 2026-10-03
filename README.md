@@ -1,4 +1,4 @@
-# Melt
+# Daliclock
 
 A Wear OS watchface with connected, curve-based digit morphing, inspired by
 xdaliclock. Target: Watch Face Format 4 on Wear OS 6 / API 36 or newer.
@@ -12,15 +12,18 @@ The connected line approximation has 98.3–99.4% silhouette overlap with the
 original at 4× resolution; it is not pixel-exact at arbitrarily large sizes.
 
 Active digits interpolate both position and stroke width with native 650 ms
-animations. Always-on uses build-rendered static images of the same geometry,
+animations with cubic-Bezier easing (`0.65 0 0.25 1`): a slow start,
+fast deformation, and a smooth arrival at the exact target. Position and width
+share the same easing so connected endpoints remain coordinated. Always-on uses build-rendered static images of the same geometry,
 rendered together as a native bitmap-font time field. Updating the whole field
 keeps unchanged digits and the colon visible at minute changes. This avoids
 duplicating thousands of static expressions: an all-vector ambient version exhausted the emulator's
 192 MB Java heap even though the official graphics-memory evaluator passed.
 
-Nine Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
+Ten Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
 and official APK/AAB memory checks pass. The debug APK is debug-signed;
-the release AAB is unsigned.
+the release AAB is unsigned unless upload signing is configured as described in
+[store/README.md](store/README.md).
 
 The current font renders with Skia Vulkan on the dedicated Wear OS 6 emulator
 using the Apple M4 host GPU (MoltenVK). The software Vulkan paths (Lavapipe and
@@ -29,14 +32,20 @@ use the tested host configuration in SETUP.md. Native captures cover active
 morphing, ambient entry, minute updates, and wake. Natural ambient rollovers
 08:59 → 09:00 and 11:59 → 12:00 in 12-hour mode, and 23:59 → 00:00 in
 24-hour mode retain all required digits and the colon. The original geometry
-and animations are unchanged by the renderer fix.
+and animations are unchanged by the renderer fix. The subsequent cubic-Bezier
+change was also captured on the native renderer. Overshooting the target
+produced persistent bulges in digits 2 and 7 on Wear OS 6; keeping the easing
+in the 0–1 range fixes their native silhouettes. After installing it, the
+existing renderer stalled in garbage collection; restarting the runtime and
+reselecting Daliclock restored rendering without changing the animation.
 Physical-watch performance, accessibility-service behavior, and battery use
 remain untested; no frame-rate or battery-saving claims are made.
 
 ## Start here
 
+- [store/README.md](store/README.md): Google Play listing copy, artwork and upload signing.
 - [prompts.md](prompts.md): complete product specification and five implementation steps,
-  copied unchanged from the supplied prompt set.
+  based on the supplied prompt set, with the requested name and easing updates.
 - [AGENTS.md](AGENTS.md): repository working agreements and implementation constraints.
 - [SETUP.md](SETUP.md): installed tools, pinned versions, validation commands,
   and the tested Wear OS emulator configuration.
@@ -69,7 +78,7 @@ tools/validate_wff.sh
 
 The build runs the resource generator automatically. Open `build/preview/index.html`
 for the offline player and `build/preview/overview.svg` for all transition samples.
-`build/preview/classic-comparison.png` pairs each original digit with Melt’s output.
+`build/preview/classic-comparison.png` pairs each original digit with Daliclock’s output.
 The preview is a development tool; it is not proof of native renderer behavior.
 The geometry tests include a conservative weighted ambient-pixel activation
 bound across all digit combinations at 384 px and 454 px, below
@@ -78,7 +87,7 @@ This uses rasterized gray strokes and RGB intensity, not a count of nonblack
 pixels.
 
 The generated scene contains 3,774 lines, 11,310 native animations (coordinates
-and thickness), and 7,536 references. XML size is 7,947,352 bytes. Both APK and
+and thickness), and 7,536 references. XML size is 8,343,202 bytes. Both APK and
 AAB pass the official 100 MB active / 10 MB ambient graphics-memory limits; this check does not
 measure renderer Java-heap use or runtime performance.
 
@@ -93,11 +102,11 @@ With the dedicated emulator running:
 adb -s emulator-5580 install -r watchface/build/outputs/apk/debug/watchface-debug.apk
 adb -s emulator-5580 shell am broadcast \
   -a com.google.android.wearable.app.DEBUG_SURFACE \
-  --es operation set-watchface --es watchFaceId de.mayflower.melt
+  --es operation set-watchface --es watchFaceId de.mayflower.daliclock
 ```
 
 The selection command follows Google's [WFF codelab](https://developer.android.com/codelabs/watch-face-format).
-Alternatively select Melt through the watchface picker. No release signing key
+Alternatively select Daliclock through the watchface picker. No release signing key
 or publishing account is needed for these local builds.
 
 ## Intended implementation

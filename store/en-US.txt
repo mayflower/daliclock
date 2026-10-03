@@ -1,0 +1,25 @@
+Title
+Daliclock
+
+Short description
+Fluid digits in the classic XDaliClock style for Wear OS
+
+Full description
+Daliclock brings XDaliClock's classic digit shapes to your watch. Each changing digit smoothly transforms into its next shape, with distinctive serifs and the original contrast between fine and bold strokes.
+
+• Large hours and minutes
+• Animated seconds that you can turn off
+• Optional date
+• Three colors: white, green and amber
+• Automatic 12- or 24-hour format following your system setting
+• Always-on display with static hours and minutes
+• English and German settings
+
+Daliclock is a watch face for watches running Wear OS 6 or later. It needs no phone companion app, account or internet connection. It contains no ads or in-app purchases.
+
+After installing, select Daliclock in your watch's watch face picker. Use the watch face editor to change seconds, date and color.
+
+The digits are based on Jamie Zawinski's original XDaliClock artwork. Its copyright and permission notice is included in the app.
+
+Release notes 1.0
+First release with fluid digits, optional seconds and date, three colors and an always-on display.

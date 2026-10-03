@@ -1,0 +1,25 @@
+Titel
+Daliclock
+
+Kurzbeschreibung
+Fließende Ziffern im klassischen XDaliClock-Stil für Wear OS
+
+Vollständige Beschreibung
+Daliclock bringt die klassische Ziffernform von XDaliClock auf deine Uhr. Bei jedem Wechsel verwandeln sich die Ziffern fließend in ihre nächste Form – mit markanten Serifen und dem charakteristischen Wechsel zwischen dünnen und kräftigen Strichen.
+
+• Große Stunden- und Minutenanzeige
+• Animierte Sekunden, auf Wunsch ausblendbar
+• Optionales Datum
+• Drei Farben: Weiß, Grün und Amber
+• Automatisches 12- oder 24-Stundenformat gemäß Systemeinstellung
+• Always-on-Anzeige mit statischen Stunden und Minuten
+• Deutsche und englische Einstellungen
+
+Daliclock ist ein Zifferblatt für Uhren mit Wear OS 6 oder neuer. Es benötigt keine Smartphone-Begleitapp, kein Konto und keine Internetverbindung. Es enthält keine Werbung oder In-App-Käufe.
+
+Nach der Installation wählst du Daliclock in der Zifferblattauswahl deiner Uhr aus. Sekunden, Datum und Farbe lassen sich im Zifferblatt-Editor einstellen.
+
+Die Ziffern basieren auf dem Original-Artwork von XDaliClock von Jamie Zawinski. Der zugehörige Urheberrechts- und Erlaubnishinweis ist in der App enthalten.
+
+Versionshinweise 1.0
+Erste Version mit fließenden Ziffern, optionalen Sekunden und Datum, drei Farben und Always-on-Anzeige.

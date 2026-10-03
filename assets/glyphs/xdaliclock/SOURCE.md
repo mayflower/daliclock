@@ -9,7 +9,7 @@ converted with Poppler's `pdftocairo -svg`, translated and uniformly scaled
 into a 100 × 160 box with digit height 140. No horizontal font distortion is
 applied. These outlines are the visual reference used by the raster tests.
 
-`../melt.json` stores connected medial-axis routes derived from these outlines,
+`../daliclock.json` stores connected medial-axis routes derived from these outlines,
 not a substitute system font. Coordinates are x, y, and stroke radius.
 Upper bowl/flag, lower bowl/base, and waist routes have shared endpoints and
 common sample positions across all ten digits. Local serif branches are

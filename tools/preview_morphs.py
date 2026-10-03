@@ -3,8 +3,8 @@
 import argparse
 from pathlib import Path
 import json
-from melt.geometry import load_glyphs, sample_glyphs
-from melt.preview import overview, player, digit_svg
+from daliclock.geometry import load_glyphs, sample_glyphs
+from daliclock.preview import overview, player, digit_svg
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -13,8 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, default=ROOT / 'build/preview')
     args = parser.parse_args()
-    config = json.loads((ROOT / 'config/melt.json').read_text())
-    sampled = sample_glyphs(load_glyphs(ROOT / 'assets/glyphs/melt.json'),
+    config = json.loads((ROOT / 'config/daliclock.json').read_text())
+    sampled = sample_glyphs(load_glyphs(ROOT / 'assets/glyphs/daliclock.json'),
                             config['main']['scale'], config['tolerance'])
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / 'index.html').write_text(player(sampled))
@@ -27,14 +27,14 @@ def main():
     from PIL import Image, ImageDraw
     sheet = Image.new('RGB', (2000, 700), '#101216')
     labels = ImageDraw.Draw(sheet)
-    comparison = sample_glyphs(load_glyphs(ROOT / 'assets/glyphs/melt.json'))
+    comparison = sample_glyphs(load_glyphs(ROOT / 'assets/glyphs/daliclock.json'))
     for digit in range(10):
         original = Image.open(io.BytesIO(cairosvg.svg2png(
             url=str(ROOT / f'assets/glyphs/xdaliclock/{digit}.svg')))).getchannel('A')
         rendered = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=digit_svg(
             comparison, comparison.points[str(digit)], (400, 640)).encode()))).convert('L')
         x, y = (digit % 5) * 400, (digit // 5) * 350
-        labels.text((x + 10, y + 10), f'{digit}: original / Melt', fill='white')
+        labels.text((x + 10, y + 10), f'{digit}: original / Daliclock', fill='white')
         sheet.paste(original.resize((200, 320)), (x, y + 30))
         sheet.paste(rendered.resize((200, 320)), (x + 200, y + 30))
     sheet.save(args.output / 'classic-comparison.png')

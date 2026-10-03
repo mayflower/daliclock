@@ -1,27 +1,50 @@
 plugins { id 'com.android.application' }
 
-def generatedRes = layout.buildDirectory.dir('generated/melt/res')
-def generateMelt = tasks.register('generateMelt', Exec) {
-    inputs.files(rootProject.fileTree('assets/glyphs'), rootProject.file('config/melt.json'), rootProject.fileTree('tools') { include '**/*.py' })
+def uploadSigning = ['DALICLOCK_UPLOAD_STORE_FILE', 'DALICLOCK_UPLOAD_STORE_PASSWORD',
+                     'DALICLOCK_UPLOAD_KEY_ALIAS', 'DALICLOCK_UPLOAD_KEY_PASSWORD'].collectEntries {
+    [(it): providers.environmentVariable(it).orNull]
+}
+def hasUploadSigning = uploadSigning.values().every { it }
+if ((uploadSigning.values().any { it } || providers.gradleProperty('requireReleaseSigning').getOrElse('false').toBoolean()) && !hasUploadSigning) {
+    throw new GradleException('Release signing requires all four DALICLOCK_UPLOAD_* environment variables; see store/README.md.')
+}
+
+def generatedRes = layout.buildDirectory.dir('generated/daliclock/res')
+def generateDaliclock = tasks.register('generateDaliclock', Exec) {
+    inputs.files(rootProject.fileTree('assets/glyphs'), rootProject.file('config/daliclock.json'), rootProject.fileTree('tools') { include '**/*.py' })
     outputs.dir(generatedRes)
     workingDir rootProject.projectDir
     commandLine providers.gradleProperty('pythonExecutable').getOrElse('python3'), 'tools/generate_watchface.py', '--output', generatedRes.get().asFile.absolutePath
 }
 android {
-    namespace 'de.mayflower.melt'
+    namespace 'de.mayflower.daliclock'
     compileSdk 36
     buildToolsVersion '36.0.0'
     defaultConfig {
-        applicationId 'de.mayflower.melt'
+        applicationId 'de.mayflower.daliclock'
         minSdk 36
         targetSdk 36
         versionCode 1
         versionName '1.0'
     }
+    signingConfigs {
+        if (hasUploadSigning) {
+            upload {
+                storeFile rootProject.file(uploadSigning.DALICLOCK_UPLOAD_STORE_FILE)
+                storePassword uploadSigning.DALICLOCK_UPLOAD_STORE_PASSWORD
+                keyAlias uploadSigning.DALICLOCK_UPLOAD_KEY_ALIAS
+                keyPassword uploadSigning.DALICLOCK_UPLOAD_KEY_PASSWORD
+            }
+        }
+    }
     buildTypes {
         debug { minifyEnabled true; shrinkResources false }
-        release { minifyEnabled true; shrinkResources false }
+        release {
+            minifyEnabled true
+            shrinkResources false
+            if (hasUploadSigning) signingConfig signingConfigs.upload
+        }
     }
     sourceSets.main.res.srcDir(generatedRes)
 }
-tasks.named('preBuild').configure { dependsOn(generateMelt) }
+tasks.named('preBuild').configure { dependsOn(generateDaliclock) }

@@ -1,5 +1,6 @@
 """WFF 4 line exporter; every moving point has exactly one drawn owner."""
 from collections import Counter
+from .animation import ANIMATION
 import math
 import xml.etree.ElementTree as ET
 
@@ -40,7 +41,8 @@ def emit_digit(parent, geometry, digit_expression, position, color_expression,
             transform = element(stroke, 'Transform', target='thickness',
                                 value=coordinate_for_digit(digit_expression, widths))
             if animated:
-                element(transform, 'Animation', duration='0.65', interpolation='LINEAR', fps='30', repeat='0')
+                element(transform, 'Animation', duration=ANIMATION['duration'], interpolation=ANIMATION['interpolation'],
+                        controls=' '.join(map(str, ANIMATION['controls'])), fps=ANIMATION['fps'], repeat='0')
         for node, axis, attr in endpoints:
             values = tables[node, axis]
             if len(set(values)) == 1:
@@ -60,7 +62,8 @@ def emit_digit(parent, geometry, digit_expression, position, color_expression,
                 transform = element(line, 'Transform', target=attr,
                                     value=coordinate_for_digit(digit_expression, values))
                 if animated:
-                    element(transform, 'Animation', duration='0.65', interpolation='LINEAR', fps='30', repeat='0')
+                    element(transform, 'Animation', duration=ANIMATION['duration'], interpolation=ANIMATION['interpolation'],
+                            controls=' '.join(map(str, ANIMATION['controls'])), fps=ANIMATION['fps'], repeat='0')
                 reference = f'{namespace}_{node}_{"xy"[axis]}'
                 owners[key] = index, attr, reference
                 if degree[node] > 1:

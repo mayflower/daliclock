@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Melt</string>
+    <string name="app_name">Daliclock</string>
     <integer name="wff_version">4</integer>
     <string name="show_seconds_label">Show seconds</string>
     <string name="show_date_label">Show date</string>

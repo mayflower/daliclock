@@ -8,8 +8,8 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
-from melt.geometry import load_glyphs, sample_glyphs
-from melt.wff import emit_digit, coordinate_for_digit, number
+from daliclock.geometry import load_glyphs, sample_glyphs
+from daliclock.wff import emit_digit, coordinate_for_digit, number
 from generate_watchface import generate, time_digits
 
 
@@ -58,7 +58,7 @@ class ExportTest(unittest.TestCase):
             self.assertFalse(any(t.get('target') == 'alpha' for t in group.findall('Transform')))
 
     def test_shared_exported_endpoints_follow_one_owner(self):
-        glyphs = load_glyphs(ROOT / 'assets/glyphs/melt.json')
+        glyphs = load_glyphs(ROOT / 'assets/glyphs/daliclock.json')
         for scale, animated in ((.9, True), (.48, True), (.9, False)):
             geometry = sample_glyphs(glyphs, scale)
             parent = ET.Element('Group')
