@@ -1,142 +1,110 @@
 # Daliclock
 
-A Wear OS watchface with connected, curve-based digit morphing, inspired by
-xdaliclock. Target: Watch Face Format 4 on Wear OS 6 / API 36 or newer.
+Melting digits for your wrist. A Wear OS watch face with the original
+[XDaliClock](https://www.jwz.org/xdaliclock/) letterforms, a surreal dusk landscape,
+and a seconds dot that glides around the dial.
 
-## Status
+<p align="center">
+  <img src="assets/readme/preview.png" width="450" alt="Daliclock showing 09:08 with white serif digits over a blue and gold landscape, inside a thin circular dial.">
+</p>
 
-The digits are derived from XDaliClock's original `dalifont.ai` artwork,
-including its thick–thin contrast and serifs. The original vectors, permission
-notice, and provenance are in [assets/glyphs/xdaliclock](assets/glyphs/xdaliclock/SOURCE.md).
-The connected line approximation has 98.3–99.4% silhouette overlap with the
-original at 4× resolution; it is not pixel-exact at arbitrarily large sizes.
+The digits stretch and flow into the next time, with a brief blue-white highlight
+and a faint trailing image. In always-on mode, only the hours and minutes remain,
+in gray on black.
 
-Active digits interpolate both position and stroke width with native 650 ms
-animations with cubic-Bezier easing (`0.65 0 0.25 1`): a slow start,
-fast deformation, and a smooth arrival at the exact target. Position and width
-share the same easing so connected endpoints remain coordinated. Always-on uses build-rendered static images of the same geometry,
-rendered together as a native bitmap-font time field. Updating the whole field
-keeps unchanged digits and the colon visible at minute changes. This avoids
-duplicating thousands of static expressions: an all-vector ambient version exhausted the emulator's
-192 MB Java heap even though the official graphics-memory evaluator passed.
+- System 12- or 24-hour time
+- Optional seconds and date
+- White, green, or amber digits
+- Minute-progress ring and continuous seconds dot
+- English and German settings
 
-Active mode shows the supplied landscape inside the ring behind the digits,
-a minute-progress ring starting
-at twelve o'clock, and a smoothly orbiting seconds dot controlled by the existing
-seconds option. The dot follows native fractional seconds, including the wrap at twelve.
-The landscape is static, dimmed with a 25% black overlay, and replaces the radial
-halo. Numeric seconds sit at x=130 in the open area of the landscape. The area outside the ring
-and the entire ambient background remain black.
-During digit changes, sparse cool-white rim highlights follow the existing animated
-coordinates and widths through references. They fade out within the 650 ms morph.
-A faint image of the previous digit, offset by two pixels horizontally and one
-vertically, fades out within 180 ms using the existing bitmap font. Neither
-effect adds a second morph animation. All decoration disappears in ambient mode. The ring radius is
-217 logical units, leaving over six units of clearance to every glyph contour.
-Partially transparent overlapping strokes soften active digit edges; tinting
-preserves the existing white/green/amber choices. Ambient glyphs are unchanged.
+**Requires Wear OS 6 or later (API 36).** Daliclock uses Watch Face Format 4;
+Wear OS renders the face directly. The package contains no executable app code,
+network permissions, ads, or analytics.
 
-Twelve Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
-and official APK/AAB memory checks pass. The debug APK is debug-signed;
-the release AAB is unsigned unless upload signing is configured as described in
-[store/README.md](store/README.md).
+## Build
 
-The current font renders with Skia Vulkan on the dedicated Wear OS 6 emulator
-using the Apple M4 host GPU (MoltenVK). The software Vulkan paths (Lavapipe and
-SwiftShader) stall or crash in Skia path tessellation with this detailed font;
-use the tested host configuration in SETUP.md. Native captures cover active
-morphing, ambient entry, minute updates, and wake. Natural ambient rollovers
-08:59 → 09:00 and 11:59 → 12:00 in 12-hour mode, and 23:59 → 00:00 in
-24-hour mode retain all required digits and the colon. The original geometry
-and animations are unchanged by the renderer fix. The subsequent cubic-Bezier
-change was also captured on the native renderer. Overshooting the target
-produced persistent bulges in digits 2 and 7 on Wear OS 6; keeping the easing
-in the 0–1 range fixes their native silhouettes. After installing it, the
-existing renderer stalled in garbage collection; restarting the runtime and
-reselecting Daliclock restored rendering without changing the animation.
-Earlier decoration checks captured the face at 384 and 454 px in active and
-ambient mode, with seconds enabled and disabled. Native recordings cover 09:59 → 10:00,
-12:59 → 13:00, 19:59 → 20:00, and 23:59 → 00:00, including the ring reset.
-The landscape version was also checked in native active and ambient rendering.
-Physical-watch performance, accessibility-service behavior, and battery use
-remain untested; no frame-rate or battery-saving claims are made.
+You need JDK 17, Python 3.13, Android SDK Platform 36, and Build Tools 36.0.0.
+Gradle 8.13 is included through the wrapper. CairoSVG also needs the Cairo
+system library; on macOS, install it with `brew install cairo`.
 
-## Start here
-
-- [store/README.md](store/README.md): Google Play listing copy, artwork and upload signing.
-- [prompts.md](prompts.md): complete product specification and five implementation steps,
-  based on the supplied prompt set, with the requested name and easing updates.
-- [AGENTS.md](AGENTS.md): repository working agreements and implementation constraints.
-- [SETUP.md](SETUP.md): installed tools, pinned versions, validation commands,
-  and the tested Wear OS emulator configuration.
-
-On the prepared machine, from this directory:
-
-```sh
-source .env.local.sh
-source .venv/bin/activate
-```
-
-To recreate the Python environment with Python 3.13:
+Point `ANDROID_HOME` at your Android SDK, then run:
 
 ```sh
 python3.13 -m venv .venv
 .venv/bin/python -m pip install -r requirements-dev.txt
+./gradlew :watchface:assembleDebug :watchface:bundleRelease \
+  -PpythonExecutable="$PWD/.venv/bin/python"
 ```
 
-The local activation file, SDK, virtual environment, external validation tools,
-and sample artifacts are not committed. See SETUP.md for their locations.
-Build and check from this directory:
+The build generates the watch face resources from the checked-in digit curves
+and artwork. It does not download fonts.
+
+| Output | Path | Signing |
+| --- | --- | --- |
+| APK | `watchface/build/outputs/apk/debug/watchface-debug.apk` | Debug key |
+| AAB | `watchface/build/outputs/bundle/release/watchface-release.aab` | Unsigned by default |
+
+See [release instructions](store/README.md) to configure an upload key and
+prepare a Google Play release.
+
+## Try it
+
+Install the debug APK on a Wear OS 6 device or emulator, replacing `SERIAL`
+with its identifier from `adb devices`:
+
+```sh
+adb -s SERIAL install -r watchface/build/outputs/apk/debug/watchface-debug.apk
+```
+
+Choose **Daliclock** in the watch face picker. The [environment notes](SETUP.md)
+include the tested Apple Silicon emulator configuration and Vulkan workarounds.
+
+For a local browser preview of digit transitions:
+
+```sh
+.venv/bin/python tools/preview_morphs.py
+```
+
+Open `build/preview/index.html`. This previews the shared digit geometry;
+the image above is a generated preview of the complete face.
+
+## Development
+
+The Python generator turns coordinated digit curves into short, connected WFF
+lines. Each shared point has one native animation owner; adjoining endpoints
+follow it through references. Position and stroke width change together over
+650 ms. Always-on glyphs are rasterized from the same curves at build time.
+
+- [`assets/glyphs/`](assets/glyphs/) — original outlines and derived digit curves
+- [`config/daliclock.json`](config/daliclock.json) — layout and animation settings
+- [`tools/daliclock/`](tools/daliclock/) — shared geometry, preview, and WFF export
+- [`tools/generate_watchface.py`](tools/generate_watchface.py) — resource generation
+- [`watchface/`](watchface/) — Android resource-only package
+
+Run the geometry and exporter tests:
 
 ```sh
 .venv/bin/python -m unittest discover -s tests -v
-.venv/bin/python tools/preview_morphs.py
-./gradlew :watchface:assembleDebug :watchface:bundleRelease \
-  -PpythonExecutable="$PWD/.venv/bin/python"
+```
+
+After building, run Google's WFF schema validator and memory evaluator with:
+
+```sh
 tools/validate_wff.sh
 ```
 
-The build runs the resource generator automatically. Open `build/preview/index.html`
-for the offline player and `build/preview/overview.svg` for all transition samples.
-`build/preview/classic-comparison.png` pairs each original digit with Daliclock’s output.
-The preview is a development tool; it is not proof of native renderer behavior.
-The geometry tests include a conservative weighted ambient-pixel activation
-bound across all digit combinations at 384 px and 454 px, below
-the [15% requirement](https://developer.android.com/docs/quality-guidelines/wear-app-quality#performance-and-functionality).
-This uses rasterized gray strokes and RGB intensity, not a count of nonblack
-pixels.
+The validator requires `WFF_VALIDATOR_JAR` and `WFF_MEMORY_JAR`;
+[SETUP.md](SETUP.md#official-wff-tools) records the pinned upstream revision
+and tool configuration.
 
-The generated scene contains 4,722 lines (including the rim), 11,310 native
-animations (coordinates and thickness), and 8,484 references. Both APK and
-AAB pass the official 100 MB active / 10 MB ambient graphics-memory limits; this check does not
-measure renderer Java-heap use or runtime performance.
+Active morphing, ambient minute changes, and wake have been exercised on the
+Wear OS 6 emulator. Physical-watch performance and battery use have not yet
+been measured.
 
-Artifacts:
+## Credits
 
-- `watchface/build/outputs/apk/debug/watchface-debug.apk` (debug-signed)
-- `watchface/build/outputs/bundle/release/watchface-release.aab` (unsigned)
-
-With the dedicated emulator running:
-
-```sh
-adb -s emulator-5580 install -r watchface/build/outputs/apk/debug/watchface-debug.apk
-adb -s emulator-5580 shell am broadcast \
-  -a com.google.android.wearable.app.DEBUG_SURFACE \
-  --es operation set-watchface --es watchFaceId de.mayflower.daliclock
-```
-
-The selection command follows Google's [WFF codelab](https://developer.android.com/codelabs/watch-face-format).
-Alternatively select Daliclock through the watchface picker. No release signing key
-or publishing account is needed for these local builds.
-
-## Intended implementation
-
-Locally stored curves for all ten digits feed a small Python geometry library.
-The preview and WFF exporter use the same sampled lines. Shared points have one
-native animation owner; connected endpoints follow through WFF references.
-The installed watchface is a resource-only package rendered by Wear OS.
-
-The product shows HH:MM, optional morphing seconds enabled by default, an
-optional date, three color themes, system 12/24-hour time, and German/English
-editor labels. Always-on renders the current static hours and minutes in one
-native text field using build-rendered glyphs.
+Daliclock's digits are derived from Jamie Zawinski's XDaliClock artwork,
+including its tapered strokes and serifs. The original artwork, conversion
+notes, and permission notice are preserved in
+[`assets/glyphs/xdaliclock`](assets/glyphs/xdaliclock/SOURCE.md).

@@ -1,11 +1,11 @@
 # Daliclock development environment
 
-Prepared and exercised on 2026-10-02 on this Apple Silicon Mac. This document records the environment setup. See README.md for the current
-Daliclock implementation status and application build commands.
+Tested toolchain and emulator configuration for Apple Silicon macOS.
+For build commands, see [README.md](README.md#build).
 
 ## Use the installed tools
 
-From this directory:
+If you have the local activation file used for this checkout:
 
 ```sh
 source .env.local.sh
@@ -22,8 +22,8 @@ configuration. Python graphics dependencies are pinned in `requirements-dev.txt`
 | --- | --- |
 | JDK | Homebrew OpenJDK 17.0.20.1 |
 | Gradle for Daliclock | 8.13, `$DALICLOCK_TOOLS/gradle-8.13` |
-| Android Gradle Plugin | 8.13.2, downloaded and tested in the sample build |
-| Android SDK | `$ANDROID_HOME` = `/Users/johann/Library/Android/sdk` |
+| Android Gradle Plugin | 8.13.2 |
+| Android SDK | `$ANDROID_HOME` (usually `$HOME/Library/Android/sdk` on macOS) |
 | Android platform | API 36, revision 2 |
 | SDK Build Tools | 36.0.0 |
 | SDK Command-line Tools | 23.0 |
@@ -33,7 +33,6 @@ configuration. Python graphics dependencies are pinned in `requirements-dev.txt`
 | Wear image | `system-images;android-36;android-wear-signed;arm64-v8a`, revision 1 |
 | Python | 3.13.15 in `.venv` |
 | SVG / raster support | CairoSVG 2.9.1, Pillow 12.3.0, Homebrew Cairo 1.18.4 |
-| Browsers | Chrome and Safari installed |
 
 The JDK/Gradle/AGP combination follows the
 [official AGP 8.13 compatibility table](https://developer.android.com/build/releases/agp-8-13-0-release-notes).
@@ -42,12 +41,13 @@ includes the Gradle 8.13 wrapper.
 
 ## Official WFF tools
 
-`$DALICLOCK_TOOLS` is `/Users/johann/.local/share/melt-tools`.
+This checkout uses `$DALICLOCK_TOOLS` = `$HOME/.local/share/melt-tools`.
+On another machine, choose a local tools directory and set that variable.
 The [Google watchface tools](https://github.com/google/watchface) checkout is
 `$DALICLOCK_TOOLS/watchface`, detached at commit
 `b6cdda0acd3e4c5d0be5624fcdc01209380029d1`.
-Both JARs were built using the upstream Gradle 8.9 wrappers and JDK 17.
-The WFF 4 Line and Stroke XSD blob hashes match those in the prompt set.
+Build both JARs using the upstream Gradle 8.9 wrappers and JDK 17, then set
+`WFF_VALIDATOR_JAR` and `WFF_MEMORY_JAR` to their absolute paths.
 
 ```sh
 java -jar "$WFF_VALIDATOR_JAR" 4 path/to/watchface.xml
@@ -56,16 +56,13 @@ java -jar "$WFF_MEMORY_JAR" --watch-face path/to/watchface.apk \
   --apply-v1-offload-limitations --estimate-optimization
 ```
 
-The memory evaluator also accepts AAB files. These are the upstream documented
-invocations, exercised against the sample artifacts below.
+The memory evaluator also accepts AAB files.
 
 ## Wear OS emulator
 
 The existing round 454 x 454 AVD retains its machine-local name
 `Melt_Wear_OS_6`; it is used to test Daliclock. The installed tools likewise
 retain their existing `melt-tools` directory.
-It booted completely, reported API 36 and the Wear watchface runtime, displayed
-its default watchface, and successfully installed the sample APK through ADB.
 Daliclock's original-font renderer is tested with **host Vulkan** on this Apple M4:
 `-gpu host` selects MoltenVK, and `debug.hwui.renderer=skiavk` selects Vulkan
 inside Android. The local AVD defaults to host graphics; keep both settings. The software Vulkan backends (Lavapipe and
@@ -99,32 +96,4 @@ not rely on the default OpenGL renderer for this API 36 image. If Daliclock was
 already selected before stopping the runtime,
 switch to a different face and back to recreate its service. Allow initialization
 to finish before capturing. Stop the emulator with
-`adb -s emulator-5580 emu kill` when finished. A physical Wear OS watch was
-not connected. The pre-existing phone AVD has a missing API 36.1 phone image;
-that unrelated AVD was left unchanged.
-
-## Setup verification
-
-A copy of Google's sample was built outside this workspace at
-`$DALICLOCK_TOOLS/build-smoke`, using API 36 and WFF 4. Both builds succeeded:
-
-```sh
-gradle -p "$DALICLOCK_TOOLS/build-smoke" :app:assembleDebug :app:bundleRelease
-```
-
-Artifacts:
-
-- `$DALICLOCK_TOOLS/build-smoke/app/build/outputs/apk/debug/app-debug.apk`
-- `$DALICLOCK_TOOLS/build-smoke/app/build/outputs/bundle/release/app-release.aab`
-
-The APK is debug-signed; the release AAB is unsigned. Both contain no DEX code.
-The sample needed `minifyEnabled true` with `shrinkResources false` for both
-build types to remove generated classes while preserving watchface resources.
-Both artifacts passed the official memory evaluator; the sample XML passed
-the version-4 validator. SVG-to-PNG rendering and PNG loading also worked.
-
-These artifacts are environment probes, not Daliclock. They do not establish Daliclock's
-geometry, animation, editor behavior, ambient behavior, pixel activation, or
-hardware performance. See README.md for implementation and runtime-test status.
-The default emulator watchface screenshot
-is saved at `$DALICLOCK_TOOLS/wear-os-6.png`.
+`adb -s emulator-5580 emu kill` when finished.

@@ -2,8 +2,7 @@
 
 Package `de.mayflower.daliclock`, version `1.0` / code `1`, Wear OS 6+.
 The German and English listing copy is in `de-DE.txt` and `en-US.txt`.
-No account, price, support contact, countries or public privacy URL has been
-selected yet. No Play Console upload has been performed.
+Manage account details, pricing, distribution, and releases in Play Console.
 
 ## Upload signing
 
@@ -53,30 +52,10 @@ square and at least 384 × 384. Include more than one configuration because Dali
 is customizable. Do not add device frames, transparent masks or captions.
 Suggested alt text: “Daliclock with amber digits, hours, minutes and seconds.”
 
-Prepared native captures in `build/store/`:
+Capture the current build before submitting a listing. Older local screenshots
+predate the landscape background and ring.
 
-- `01-amber-24h.png`: amber, 24-hour format, seconds visible.
-- `02-amber-12h.png`: amber, 12-hour format with AM, seconds visible.
-- `03-always-on.png`: static ambient time after a natural minute rollover.
-
-These are 454 × 454 emulator captures from the previously validated app at
-commit `fae27b8`, with opaque alpha removed without altering RGB pixels.
-They are not physical-device captures. Source captures are
-`build/emulator-visible.png` and
-`build/render-fix-rollovers/12-1159-{active,after}.png`.
-These older captures predate the landscape background and ring and must be replaced before
-uploading the updated listing.
-
-## Preparation status, 2026-10-03
-
-Daliclock artwork rendered and visually inspected. All twelve Python tests,
-APK/AAB builds, official WFF 4 schema validation and both memory checks pass.
-The debug APK declares `de.mayflower.daliclock` and the label `Daliclock` in
-both languages. The release AAB remains unsigned; the build without upload
-credentials succeeds, but signing with a real upload key is still pending.
-No Console settings or releases have been changed by this preparation.
-
-## Console setup still required
+## Play Console
 
 Create an **app**, enable **Wear OS** under form factors, and choose applicable
 watch face category tags. Supply the public support contact, price and countries.
@@ -94,8 +73,7 @@ Upload to an internal test track first, install through Play and check the
 watch face picker, customization, active morphing, ambient minute changes and
 wake on a physical Wear OS 6 watch. Physical-watch performance and battery use
 have not been tested; host-Vulkan emulator results do not establish those.
-New personal developer accounts may require a closed test with at least
-12 opted-in testers for 14 consecutive days before production access.
+Follow the testing requirements shown for your developer account in Play Console.
 
 Sources checked 2026-10-03:
 
