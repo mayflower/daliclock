@@ -11,7 +11,7 @@ if ((uploadSigning.values().any { it } || providers.gradleProperty('requireRelea
 
 def generatedRes = layout.buildDirectory.dir('generated/daliclock/res')
 def generateDaliclock = tasks.register('generateDaliclock', Exec) {
-    inputs.files(rootProject.fileTree('assets/glyphs'), rootProject.file('config/daliclock.json'), rootProject.fileTree('tools') { include '**/*.py' })
+    inputs.files(rootProject.fileTree('assets'), rootProject.file('config/daliclock.json'), rootProject.fileTree('tools') { include '**/*.py' })
     outputs.dir(generatedRes)
     workingDir rootProject.projectDir
     commandLine providers.gradleProperty('pythonExecutable').getOrElse('python3'), 'tools/generate_watchface.py', '--output', generatedRes.get().asFile.absolutePath

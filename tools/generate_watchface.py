@@ -1,18 +1,75 @@
 #!/usr/bin/env python3
 """Generate the resource-only watchface from the shared digit graph."""
 import argparse
+import base64
 import json
+import math
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import cairosvg
 from daliclock.geometry import load_glyphs, sample_glyphs
 from daliclock.preview import lines_svg
-from daliclock.wff import element as add, emit_digit
+from daliclock.wff import element as add, emit_digit, emit_morph_effects
 
 ROOT = Path(__file__).resolve().parents[1]
 HOUR = '([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12])'
 TIME = [f'floor({HOUR} / 10)', f'({HOUR} % 10)', '[MINUTE_TENS_DIGIT]', '[MINUTE_UNITS_DIGIT]']
 COLOR = '[CONFIGURATION.color_theme.0]'
+PREVIOUS_SECOND = '(([SECOND] + 59) % 60)'
+PREVIOUS_MINUTE = '([SECOND] == 0 ? ([MINUTE] + 59) % 60 : [MINUTE])'
+PREVIOUS_HOUR_24 = '([MINUTE] == 0 && [SECOND] == 0 ? ([HOUR_0_23] + 23) % 24 : [HOUR_0_23])'
+PREVIOUS_HOUR = f'([IS_24_HOUR_MODE] ? {PREVIOUS_HOUR_24} : (({PREVIOUS_HOUR_24} + 11) % 12) + 1)'
+PREVIOUS_TIME = [f'floor({PREVIOUS_HOUR} / 10)', f'({PREVIOUS_HOUR} % 10)',
+                 f'floor({PREVIOUS_MINUTE} / 10)', f'({PREVIOUS_MINUTE} % 10)']
+# Active-only decoration in the existing 450-unit layout.
+RING_RADIUS, RING_WIDTH, DOT_SIZE = 217, 1.4, 4
+RING_IDLE, RING_ACTIVE = '#266C79FF', '#806C79FF'
+BACKGROUND = ROOT / 'assets/backgrounds/dali-landscape.png'
+BACKGROUND_DIM = 0.25
+
+
+def background_svg():
+    # Fit the supplied artwork inside the ring; keep its colors and composition.
+    radius = RING_RADIUS - RING_WIDTH / 2
+    image = base64.b64encode(BACKGROUND.read_bytes()).decode('ascii')
+    return (f'<defs><clipPath id="background_clip"><circle cx="225" cy="225" r="{radius}"/></clipPath></defs>'
+            f'<image xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="data:image/png;base64,{image}" '
+            f'x="{225-radius}" y="{225-radius}" width="{2*radius}" height="{2*radius}" '
+            'preserveAspectRatio="xMidYMid slice" clip-path="url(#background_clip)"/>'
+            f'<circle cx="225" cy="225" r="{radius}" fill="black" opacity="{BACKGROUND_DIM}"/>')
+
+
+def decoration(parent):
+    background = add(parent, 'PartImage', name='landscape', x=0, y=0, width=450, height=450)
+    add(background, 'Image', resource='landscape')
+    ring = add(parent, 'PartDraw', name='minute_ring', x=0, y=0, width=450, height=450)
+    track = add(ring, 'Ellipse', x=225-RING_RADIUS, y=225-RING_RADIUS,
+                width=2*RING_RADIUS, height=2*RING_RADIUS)
+    add(track, 'Stroke', color=RING_IDLE, thickness=RING_WIDTH)
+    arc = add(ring, 'Arc', centerX=225, centerY=225, width=2*RING_RADIUS,
+              height=2*RING_RADIUS, startAngle=0, endAngle=0, direction='CLOCKWISE')
+    add(arc, 'Stroke', color=RING_ACTIVE, thickness=RING_WIDTH, cap='ROUND')
+    add(arc, 'Transform', target='endAngle', value='[MINUTE] * 6')
+
+
+def decoration_preview(minute, second):
+    """Static listing/chooser preview only; native WFF owns the live effects."""
+    parts = [background_svg()]
+    circumference = 2*math.pi*RING_RADIUS
+    for color, dash in ((RING_IDLE, ''), (RING_ACTIVE, f'stroke-dasharray="{circumference*minute/60} {circumference}"')):
+        parts.append(f'<circle cx="225" cy="225" r="{RING_RADIUS}" fill="none" stroke="#{color[3:]}" stroke-opacity="{int(color[1:3],16)/255}" stroke-width="{RING_WIDTH}" transform="rotate(-90 225 225)" {dash}/>')
+    angle = math.radians(second*6)
+    parts.append(f'<circle cx="{225+RING_RADIUS*math.sin(angle)}" cy="{225-RING_RADIUS*math.cos(angle)}" r="{DOT_SIZE/2}" fill="#E8EAFF"/>')
+    return ''.join(parts)
+
+
+def orbit_dot(parent):
+    orbit = group(parent, 'seconds_orbit')
+    add(orbit, 'Transform', target='angle', value='[SECOND_MILLISECOND] * 6')
+    part = add(orbit, 'PartDraw', name='seconds_dot', x=0, y=0, width=450, height=450)
+    dot = add(part, 'Ellipse', x=225-DOT_SIZE/2, y=225-RING_RADIUS-DOT_SIZE/2,
+              width=DOT_SIZE, height=DOT_SIZE)
+    add(dot, 'Fill', color='#FFE8EAFF')
 
 
 def time_digits(hour, minute, second, is_24_hour):
@@ -76,11 +133,14 @@ def generate(output):
     # a single time field invalidates all digits and the colon on each update.
     # Separate PartImages can lose unchanged content in the Wear OS 6 renderer.
     (output / 'drawable').mkdir(parents=True, exist_ok=True)
+    background = ('<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900" viewBox="0 0 450 450">'
+                  + background_svg() + '</svg>')
+    cairosvg.svg2png(bytestring=background.encode(), write_to=str(output / 'drawable/landscape.png'))
     for digit in range(10):
         w, h = ambient.box
         svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w * 2}" height="{h * 2}" '
                f'viewBox="0 0 {w} {h}">' + lines_svg(ambient, ambient.points[str(digit)],
-               '#FFFFFF') + '</svg>')
+               '#FFFFFF', opacity=1) + '</svg>')
         cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/ambient_{digit}.png'))
     root = ET.Element('WatchFace', width='450', height='450', clipShape='CIRCLE')
     fonts = add(root, 'BitmapFonts')
@@ -104,14 +164,25 @@ def generate(output):
     scene = add(root, 'Scene', backgroundColor='#FF000000')
     active = group(scene, 'active')
     add(active, 'Variant', mode='AMBIENT', target='alpha', value=0, duration=0)
-    clock(active, main, cfg['main'], True, 'active_time', COLOR)
+    decoration(active)
+    effects = group(active, 'time_effects', cfg['main']['x'], cfg['main']['y'], 388, 160)
+    add(effects, 'Transform', target='y', value=f'([CONFIGURATION.show_seconds] == "TRUE" ? {cfg["main"]["y"]} : {cfg["main"]["quiet_y"]})')
+    time_group = clock(active, main, cfg['main'], True, 'active_time', COLOR)
+    for i, (current, previous) in enumerate(zip(TIME, PREVIOUS_TIME)):
+        emit_morph_effects(effects, time_group.find(f"PartDraw[@name='active_time_d{i}']"), current, previous,
+                           visible='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10)' if i == 0 else '1 == 1',
+                           previous_visible=f'([IS_24_HOUR_MODE] || {PREVIOUS_HOUR} >= 10)' if i == 0 else '1 == 1')
     ampm = text(active, 'ampm', 185, 270, 80, 16, '%s', ['[AMPM_STRING]'])
     add(ampm, 'Transform', target='alpha', value='([IS_24_HOUR_MODE] ? 0 : 255)')
     selection = add(active, 'BooleanConfiguration', id='show_seconds')
-    yes = add(selection, 'BooleanOption', id='TRUE')
+    yes = group(add(selection, 'BooleanOption', id='TRUE'), 'seconds_enabled')
+    orbit_dot(yes)
+    effects = group(yes, 'seconds_effects', cfg['seconds']['x'], cfg['seconds']['y'], 100, 77)
     sec = group(yes, 'seconds', cfg['seconds']['x'], cfg['seconds']['y'], 100, 77)
     for i, expression in enumerate(['[SECOND_TENS_DIGIT]', '[SECOND_UNITS_DIGIT]']):
-        emit_digit(sec, seconds, expression, (cfg['seconds']['positions'][i], 0), COLOR, True, f'seconds_d{i}', max_digit=(5, 9)[i])
+        part, _, _ = emit_digit(sec, seconds, expression, (cfg['seconds']['positions'][i], 0), COLOR, True, f'seconds_d{i}', max_digit=(5, 9)[i])
+        previous = f'floor({PREVIOUS_SECOND} / 10)' if i == 0 else f'({PREVIOUS_SECOND} % 10)'
+        emit_morph_effects(effects, part, expression, previous)
     group(add(selection, 'BooleanOption', id='FALSE'), 'seconds_off')
     selection = add(active, 'BooleanConfiguration', id='show_date')
     date = group(add(selection, 'BooleanOption', id='TRUE'), 'date')
@@ -124,13 +195,14 @@ def generate(output):
     ET.indent(root)
     ET.ElementTree(root).write(output / 'raw/watchface.xml', encoding='utf-8', xml_declaration=True)
     parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="450" height="450"><rect width="450" height="450" fill="black"/>']
+    parts.append(decoration_preview(8, 10))
     preview_digits = time_digits(9, 8, 10, True)
     for i, d in enumerate(preview_digits[:4]):
         parts.append(f'<g transform="translate({cfg["main"]["x"] + cfg["main"]["positions"][i]},130)">{lines_svg(main, main.points[str(d)])}</g>')
     for y in (187, 218):
         parts.append(f'<circle cx="225" cy="{y}" r="4" fill="white"/>')
     for i, d in enumerate(preview_digits[4:]):
-        parts.append(f'<g transform="translate({175 + cfg["seconds"]["positions"][i]},300)">{lines_svg(seconds, seconds.points[str(d)])}</g>')
+        parts.append(f'<g transform="translate({cfg["seconds"]["x"] + cfg["seconds"]["positions"][i]},{cfg["seconds"]["y"]})">{lines_svg(seconds, seconds.points[str(d)])}</g>')
     parts.append('</svg>')
     (output / 'drawable').mkdir(exist_ok=True)
     cairosvg.svg2png(bytestring=''.join(parts).encode(), write_to=str(output / 'drawable/preview.png'))

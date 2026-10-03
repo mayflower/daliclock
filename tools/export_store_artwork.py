@@ -9,6 +9,7 @@ from PIL import Image
 
 from daliclock.geometry import load_glyphs, sample_glyphs
 from daliclock.preview import lines_svg
+from generate_watchface import decoration_preview
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -16,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     cfg = json.loads((ROOT / 'config/daliclock.json').read_text())
     glyphs = load_glyphs(ROOT / 'assets/glyphs/daliclock.json')
-    parts = ['<circle cx="225" cy="225" r="225" fill="black"/>']
+    parts = ['<circle cx="225" cy="225" r="225" fill="black"/>', decoration_preview(41, 30)]
     for name, digits in [('main', '0941'), ('seconds', '30')]:
         layout = cfg[name]
         sampled = sample_glyphs(glyphs, layout['scale'], cfg['tolerance'])

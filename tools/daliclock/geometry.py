@@ -10,6 +10,9 @@ import json
 import math
 from pathlib import Path
 
+# Dense round strokes overlap: partial coverage keeps their outer edge soft.
+STROKE_ALPHA = 96
+
 Point = tuple[float, float, float]  # x, y, radius
 
 

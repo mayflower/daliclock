@@ -64,11 +64,12 @@ commit `fae27b8`, with opaque alpha removed without altering RGB pixels.
 They are not physical-device captures. Source captures are
 `build/emulator-visible.png` and
 `build/render-fix-rollovers/12-1159-{active,after}.png`.
-Re-capture if the watch face appearance changes.
+These older captures predate the landscape background and ring and must be replaced before
+uploading the updated listing.
 
 ## Preparation status, 2026-10-03
 
-Daliclock artwork rendered and visually inspected. All ten Python tests,
+Daliclock artwork rendered and visually inspected. All twelve Python tests,
 APK/AAB builds, official WFF 4 schema validation and both memory checks pass.
 The debug APK declares `de.mayflower.daliclock` and the label `Daliclock` in
 both languages. The release AAB remains unsigned; the build without upload

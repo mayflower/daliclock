@@ -7,7 +7,7 @@ import sys
 import unittest
 
 import cairosvg
-from PIL import Image, ImageChops
+from PIL import Image, ImageChops, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -71,6 +71,30 @@ class GeometryTest(unittest.TestCase):
         for invalid in (-.001, 1.001, math.nan):
             with self.assertRaises(ValueError):
                 interpolate(self.sampled, 1, 2, invalid)
+
+    def test_soft_strokes_preserve_partial_edge_coverage(self):
+        sampled = sample_glyphs(self.glyphs, .9, .35)
+        for d in (2, 4, 7):
+            svg = digit_svg(sampled, sampled.points[str(d)])
+            soft = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=svg.encode()))).convert('L')
+            opaque_svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="144">'
+                          '<rect width="90" height="144" fill="black"/>'
+                          + lines_svg(sampled, sampled.points[str(d)], opacity=1) + '</svg>')
+            hard = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=opaque_svg.encode()))).convert('L')
+            # Inspect the visible boundary, excluding the fully covered interior.
+            core = hard.point(lambda v: 255 if v == 255 else 0).filter(ImageFilter.MinFilter(3))
+            partial = lambda im: sum(1 for v, c in zip(im.getdata(), core.getdata()) if c == 0 and 0 < v < 250)
+            self.assertGreater(partial(soft), partial(hard))
+
+    def test_ring_clears_all_digit_silhouettes(self):
+        from generate_watchface import RING_RADIUS, RING_WIDTH
+        cfg = json.loads((ROOT / 'config/daliclock.json').read_text())['main']
+        for y in (cfg['y'], cfg['quiet_y']):
+            for x in cfg['positions']:
+                for points in self.sampled.points.values():
+                    for px, py, radius in points.values():
+                        extent = math.hypot(cfg['x']+x+px-225, y+py-225)+radius
+                        self.assertGreater(RING_RADIUS-RING_WIDTH/2-extent, 4)
 
     def test_broken_join_and_swapped_ids_are_detected(self):
         broken = copy.deepcopy(self.glyphs)
@@ -153,7 +177,7 @@ class GeometryTest(unittest.TestCase):
             for offset in cfg['main']['positions']:
                 x, y = cfg['main']['x'] + offset, cfg['main']['quiet_y']
                 total += max(intensity(f'<g transform="translate({x},{y})">'
-                                       + lines_svg(s, s.points[str(d)], color) + '</g>')
+                                       + lines_svg(s, s.points[str(d)], color, opacity=1) + '</g>')
                              for d in range(10))
             total += intensity(''.join(f'<circle cx="225" cy="{cfg["main"]["quiet_y"] + y}" '
                                        f'r="4" fill="{color}"/>' for y in (57, 88)))

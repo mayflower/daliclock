@@ -1,16 +1,16 @@
 """Development-only rendering of the very same short lines exported to WFF."""
 
 import json
-from .geometry import interpolate
+from .geometry import interpolate, STROKE_ALPHA
 from .animation import ANIMATION, eased_progress
 
 TRANSITIONS = [(i, (i + 1) % 10) for i in range(10)] + [(5, 0), (2, 0), (8, 1)]
 
 
-def lines_svg(sampled, points, color='#fff'):
+def lines_svg(sampled, points, color='#fff', opacity=STROKE_ALPHA/255):
     return ''.join(f'<line x1="{points[a][0]:.4f}" y1="{points[a][1]:.4f}" '
                    f'x2="{points[b][0]:.4f}" y2="{points[b][1]:.4f}" '
-                   f'stroke="{color}" stroke-width="{points[a][2] + points[b][2]:.4f}" stroke-linecap="round"/>'
+                   f'stroke="{color}" stroke-opacity="{opacity}" stroke-width="{points[a][2] + points[b][2]:.4f}" stroke-linecap="round"/>'
                    for a, b in sampled.edges)
 
 
@@ -46,7 +46,7 @@ def overview(sampled):
 
 def player(sampled):
     data = json.dumps({'points': sampled.points, 'edges': sampled.edges,
-                       'box': sampled.box, 'animation': ANIMATION}, separators=(',', ':'))
+                       'box': sampled.box, 'animation': ANIMATION, 'strokeOpacity': STROKE_ALPHA/255}, separators=(',', ':'))
     return '''<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Daliclock · geometry preview</title><style>
@@ -74,7 +74,7 @@ let lo=0,hi=1;for(let i=0;i<40;i++){const t=(lo+hi)/2;if(b(t,x1,x2)<x)lo=t;else 
 return b((lo+hi)/2,y1,y2);}
 function draw(){const u=ease(Number(range.value)),a=data.points[from.value],b=data.points[to.value],p={};
 for(const id in a)p[id]=a[id].map((x,j)=>(1-u)*x+u*b[id][j]);
-svg.innerHTML=data.edges.map(([a,b])=>`<line x1="${p[a][0]}" y1="${p[a][1]}" x2="${p[b][0]}" y2="${p[b][1]}" stroke="white" stroke-width="${p[a][2]+p[b][2]}" stroke-linecap="round"/>`).join('');
+svg.innerHTML=data.edges.map(([a,b])=>`<line x1="${p[a][0]}" y1="${p[a][1]}" x2="${p[b][0]}" y2="${p[b][1]}" stroke="white" stroke-opacity="${data.strokeOpacity}" stroke-width="${p[a][2]+p[b][2]}" stroke-linecap="round"/>`).join('');
 if(nodes.checked)svg.innerHTML+=Object.values(p).map(([x,y])=>`<circle cx="${x}" cy="${y}" r=".7" fill="#ec5987"/>`).join('');
 document.querySelector('#value').value=u.toFixed(3);}
 for(const el of [from,to,range,nodes])el.addEventListener('input',()=>{cancelAnimationFrame(animation);draw()});

@@ -20,7 +20,23 @@ keeps unchanged digits and the colon visible at minute changes. This avoids
 duplicating thousands of static expressions: an all-vector ambient version exhausted the emulator's
 192 MB Java heap even though the official graphics-memory evaluator passed.
 
-Ten Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
+Active mode shows the supplied landscape inside the ring behind the digits,
+a minute-progress ring starting
+at twelve o'clock, and a smoothly orbiting seconds dot controlled by the existing
+seconds option. The dot follows native fractional seconds, including the wrap at twelve.
+The landscape is static, dimmed with a 25% black overlay, and replaces the radial
+halo. Numeric seconds sit at x=130 in the open area of the landscape. The area outside the ring
+and the entire ambient background remain black.
+During digit changes, sparse cool-white rim highlights follow the existing animated
+coordinates and widths through references. They fade out within the 650 ms morph.
+A faint image of the previous digit, offset by two pixels horizontally and one
+vertically, fades out within 180 ms using the existing bitmap font. Neither
+effect adds a second morph animation. All decoration disappears in ambient mode. The ring radius is
+217 logical units, leaving over six units of clearance to every glyph contour.
+Partially transparent overlapping strokes soften active digit edges; tinting
+preserves the existing white/green/amber choices. Ambient glyphs are unchanged.
+
+Twelve Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
 and official APK/AAB memory checks pass. The debug APK is debug-signed;
 the release AAB is unsigned unless upload signing is configured as described in
 [store/README.md](store/README.md).
@@ -38,6 +54,10 @@ produced persistent bulges in digits 2 and 7 on Wear OS 6; keeping the easing
 in the 0–1 range fixes their native silhouettes. After installing it, the
 existing renderer stalled in garbage collection; restarting the runtime and
 reselecting Daliclock restored rendering without changing the animation.
+Earlier decoration checks captured the face at 384 and 454 px in active and
+ambient mode, with seconds enabled and disabled. Native recordings cover 09:59 → 10:00,
+12:59 → 13:00, 19:59 → 20:00, and 23:59 → 00:00, including the ring reset.
+The landscape version was also checked in native active and ambient rendering.
 Physical-watch performance, accessibility-service behavior, and battery use
 remain untested; no frame-rate or battery-saving claims are made.
 
@@ -86,8 +106,8 @@ the [15% requirement](https://developer.android.com/docs/quality-guidelines/wear
 This uses rasterized gray strokes and RGB intensity, not a count of nonblack
 pixels.
 
-The generated scene contains 3,774 lines, 11,310 native animations (coordinates
-and thickness), and 7,536 references. XML size is 8,343,202 bytes. Both APK and
+The generated scene contains 4,722 lines (including the rim), 11,310 native
+animations (coordinates and thickness), and 8,484 references. Both APK and
 AAB pass the official 100 MB active / 10 MB ambient graphics-memory limits; this check does not
 measure renderer Java-heap use or runtime performance.
 
