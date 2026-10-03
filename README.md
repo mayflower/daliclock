@@ -13,22 +13,25 @@ original at 4× resolution; it is not pixel-exact at arbitrarily large sizes.
 
 Active digits interpolate both position and stroke width with native 650 ms
 animations. Always-on uses build-rendered static images of the same geometry,
-selected by native current-time conditions. This avoids duplicating thousands
-of static expressions: an all-vector ambient version exhausted the emulator's
+rendered together as a native bitmap-font time field. Updating the whole field
+keeps unchanged digits and the colon visible at minute changes. This avoids
+duplicating thousands of static expressions: an all-vector ambient version exhausted the emulator's
 192 MB Java heap even though the official graphics-memory evaluator passed.
 
 Nine Python tests, Android APK/AAB builds, the official WFF 4 schema validator,
 and official APK/AAB memory checks pass. The debug APK is debug-signed;
 the release AAB is unsigned.
 
-The current font was rendered on the Wear OS 6 emulator with Skia OpenGL.
-Native captures show the active font, seconds, the 09:41 → 09:42 rollover,
-always-on, and wake. However, OpenGL drops unchanged ambient content after a
-minute update; the previously working software Vulkan backend stalls with
-this denser font. The current native rendering check is therefore **partial**.
-This build needs further renderer/performance work before release. Physical-watch
-performance, accessibility-service behavior, and battery use remain untested;
-no frame-rate or battery-saving claims are made.
+The current font renders with Skia Vulkan on the dedicated Wear OS 6 emulator
+using the Apple M4 host GPU (MoltenVK). The software Vulkan paths (Lavapipe and
+SwiftShader) stall or crash in Skia path tessellation with this detailed font;
+use the tested host configuration in SETUP.md. Native captures cover active
+morphing, ambient entry, minute updates, and wake. Natural ambient rollovers
+08:59 → 09:00 and 11:59 → 12:00 in 12-hour mode, and 23:59 → 00:00 in
+24-hour mode retain all required digits and the colon. The original geometry
+and animations are unchanged by the renderer fix.
+Physical-watch performance, accessibility-service behavior, and battery use
+remain untested; no frame-rate or battery-saving claims are made.
 
 ## Start here
 
@@ -75,9 +78,9 @@ This uses rasterized gray strokes and RGB intensity, not a count of nonblack
 pixels.
 
 The generated scene contains 3,774 lines, 11,310 native animations (coordinates
-and thickness), and 7,536 references. XML size is 7,955,192 bytes. The official
-memory evaluator reports 2,790,064 bytes active and 810,000 bytes ambient;
-these figures do not measure renderer Java-heap use or runtime performance.
+and thickness), and 7,536 references. XML size is 7,947,352 bytes. Both APK and
+AAB pass the official 100 MB active / 10 MB ambient graphics-memory limits; this check does not
+measure renderer Java-heap use or runtime performance.
 
 Artifacts:
 
@@ -106,4 +109,5 @@ The installed watchface is a resource-only package rendered by Wear OS.
 
 The product shows HH:MM, optional morphing seconds enabled by default, an
 optional date, three color themes, system 12/24-hour time, and German/English
-editor labels. Always-on selects the current static hours and minutes from build-rendered glyphs.
+editor labels. Always-on renders the current static hours and minutes in one
+native text field using build-rendered glyphs.

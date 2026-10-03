@@ -64,17 +64,21 @@ invocations, exercised against the sample artifacts below.
 A dedicated round 454 x 454 device named `Melt_Wear_OS_6` is configured.
 It booted completely, reported API 36 and the Wear watchface runtime, displayed
 its default watchface, and successfully installed the sample APK through ADB.
-The original, simpler Melt geometry was tested with software graphics and the
-guest Skia Vulkan renderer. The current XDaliClock-derived font stalls on this
-backend; OpenGL displays it but still drops unchanged ambient content. See
-README.md for the current partial native-validation status.
-The initial SwiftShader setup could boot and install packages, but subsequent
-Melt and system-UI checks exposed disappearing static content with Skia OpenGL.
-The earlier tested combination below uses Lavapipe for Vulkan on this Mac.
+Melt's original-font renderer is tested with **host Vulkan** on this Apple M4:
+`-gpu host` selects MoltenVK, and `debug.hwui.renderer=skiavk` selects Vulkan
+inside Android. The local AVD defaults to host graphics; keep both settings. The software Vulkan backends (Lavapipe and
+SwiftShader) stall or crash in Skia path tessellation with the detailed font.
+Skia OpenGL also exhibits disappearing static content. Changing HWUI buffer-age
+or partial-update properties did not fix that issue.
+
+The watchface separately fixes ambient invalidation by drawing HH:MM as one
+bitmap-font text field. The original per-digit PartImages reproduced missing
+unchanged digits even with host Vulkan; switching the graphics backend alone
+is therefore insufficient.
 
 ```sh
 # Run in a separate terminal; remove -no-window to show the emulator window.
-emulator -avd Melt_Wear_OS_6 -port 5580 -gpu software \
+emulator -avd Melt_Wear_OS_6 -port 5580 -gpu host \
   -no-window -no-audio -no-snapshot
 
 # Target this emulator explicitly; a physical Android phone may also be attached.
@@ -88,7 +92,9 @@ adb -s emulator-5580 shell dumpsys gfxinfo com.google.wear.watchface.runtime
 ```
 
 Set the renderer after each cold boot, before selecting Melt; the property is
-not persistent. If Melt was already selected before stopping the runtime,
+not persistent. The host GLES driver reports only GLES 3.0 on this Mac, so do
+not rely on the default OpenGL renderer for this API 36 image. If Melt was
+already selected before stopping the runtime,
 switch to a different face and back to recreate its service. Allow initialization
 to finish before capturing. Stop the emulator with
 `adb -s emulator-5580 emu kill` when finished. A physical Wear OS watch was

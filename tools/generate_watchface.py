@@ -44,21 +44,19 @@ def clock(parent, geometry, cfg, animated, namespace, color):
     reader = add(main, 'ScreenReader', stringId='time_accessibility')
     for expression in [HOUR, '[MINUTE]', '([IS_24_HOUR_MODE] ? "" : [AMPM_STRING])']:
         add(reader, 'Parameter', expression=expression)
+    if not animated:
+        part = add(main, 'PartText', name='ambient_clock', x=0, y=0, width=391, height=144)
+        body = add(part, 'Text', align='START')
+        font = add(body, 'BitmapFont', family='ambient_digits', size=144, color=color)
+        fmt = add(font, 'Template')
+        fmt.text = '%s%d:%02d'
+        add(fmt, 'Parameter', expression=f'([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10 ? floor({HOUR} / 10) : " ")')
+        add(fmt, 'Parameter', expression=f'({HOUR} % 10)')
+        add(fmt, 'Parameter', expression='[MINUTE]')
+        return main
     for i, expression in enumerate(TIME):
-        if animated:
-            part, _, _ = emit_digit(main, geometry, expression, (cfg['positions'][i], 0), color,
-                                   True, f'{namespace}_d{i}', max_digit=(2, 9, 5, 9)[i])
-        else:
-            part = group(main, f'{namespace}_d{i}', cfg['positions'][i], 0,
-                         int(geometry.box[0]), int(geometry.box[1]))
-            condition = add(part, 'Condition')
-            expressions = add(condition, 'Expressions')
-            for digit in range((2, 9, 5, 9)[i] + 1):
-                add(expressions, 'Expression', name=f'd{digit}').text = f'({expression}) == {digit}'
-                branch = add(condition, 'Compare', expression=f'd{digit}')
-                image = add(branch, 'PartImage', x=0, y=0,
-                            width=int(geometry.box[0]), height=int(geometry.box[1]))
-                add(image, 'Image', resource=f'ambient_{digit}')
+        part, _, _ = emit_digit(main, geometry, expression, (cfg['positions'][i], 0), color,
+                               True, f'{namespace}_d{i}', max_digit=(2, 9, 5, 9)[i])
         if i == 0:
             add(part, 'Transform', target='alpha', value='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10 ? 255 : 0)')
     colon = add(main, 'PartDraw', name=f'{namespace}_colon', x=187, y=0, width=14, height=144)
@@ -74,16 +72,29 @@ def generate(output):
     main = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
     seconds = sample_glyphs(glyphs, cfg['seconds']['scale'], cfg['tolerance'])
     ambient = sample_glyphs(glyphs, cfg['main']['scale'], cfg['tolerance'])
-    # Always-on has no morph: cache the exact exported geometry, not an active
-    # frame, and let native time conditions choose the current static digit.
+    # Always-on has no morph. Render the exact geometry into a bitmap font so
+    # a single time field invalidates all digits and the colon on each update.
+    # Separate PartImages can lose unchanged content in the Wear OS 6 renderer.
     (output / 'drawable').mkdir(parents=True, exist_ok=True)
     for digit in range(10):
         w, h = ambient.box
         svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w * 2}" height="{h * 2}" '
                f'viewBox="0 0 {w} {h}">' + lines_svg(ambient, ambient.points[str(digit)],
-               '#' + cfg['ambient']['color'][3:]) + '</svg>')
+               '#FFFFFF') + '</svg>')
         cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/ambient_{digit}.png'))
     root = ET.Element('WatchFace', width='450', height='450', clipShape='CIRCLE')
+    fonts = add(root, 'BitmapFonts')
+    font = add(fonts, 'BitmapFont', name='ambient_digits')
+    for digit in range(10):
+        add(font, 'Character', name=str(digit), resource=f'ambient_{digit}',
+            width=93, height=144, marginRight=3)
+    for char, name, width, content in [
+            (':', 'colon', 19, '<circle cx="8" cy="57" r="4" fill="white"/><circle cx="8" cy="88" r="4" fill="white"/>'),
+            (' ', 'space', 93, '')]:
+        svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{width * 2}" height="288" '
+               f'viewBox="0 0 {width} 144">{content}</svg>')
+        cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/ambient_{name}.png'))
+        add(font, 'Character', name=char, resource=f'ambient_{name}', width=width, height=144)
     configs = add(root, 'UserConfigurations')
     for name, default in [('show_seconds', 'TRUE'), ('show_date', 'FALSE')]:
         add(configs, 'BooleanConfiguration', id=name, displayName=f'{name}_label', screenReaderText=f'{name}_label', defaultValue=default)
