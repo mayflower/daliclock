@@ -1,0 +1,100 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libcairo2
+          python -m pip install -r requirements-dev.txt
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Test
+        run: python -m unittest discover -s tests -v
+      - name: Restore preview signing key
+        env:
+          KEYSTORE: ${{ secrets.PREVIEW_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE"
+          mkdir -p "$HOME/.android"
+          printf '%s' "$KEYSTORE" | base64 --decode > "$HOME/.android/debug.keystore"
+          chmod 600 "$HOME/.android/debug.keystore"
+      - name: Build installable APK
+        run: ./gradlew --no-daemon :watchface:assembleDebug -PpythonExecutable="$(command -v python)"
+      - name: Verify and package APK
+        run: |
+          mkdir -p dist
+          cp watchface/build/outputs/apk/debug/watchface-debug.apk dist/daliclock.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose dist/daliclock.apk
+          cd dist
+          sha256sum daliclock.apk > daliclock.apk.sha256
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: daliclock-apk
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Publish preview download
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          gh run download "$RUN_ID" --name daliclock-apk --dir dist
+          cat > notes.md <<EOF_NOTES
+          Installable preview for Wear OS 6 or later (API 36).
+
+          Download daliclock.apk and install it with:
+          \`adb -s SERIAL install -r daliclock.apk\`
+          Then select Daliclock in the watch face picker.
+
+          These builds use a dedicated preview key, not a Play Store signing key.
+          Switching from a local or Play Store build may require uninstalling that build first.
+
+          Source commit: $COMMIT
+          Build: https://github.com/$GH_REPO/actions/runs/$RUN_ID
+          EOF_NOTES
+          if gh release view preview >/dev/null 2>&1; then
+            gh release edit preview --title 'Latest preview' --notes-file notes.md --prerelease
+          else
+            gh release create preview --target "$COMMIT" --title 'Latest preview' --notes-file notes.md --prerelease
+          fi
+          gh release upload preview dist/daliclock.apk dist/daliclock.apk.sha256 --clobber
+          gh api --method PATCH "repos/$GH_REPO/git/refs/tags/preview" -f sha="$COMMIT" -F force=true

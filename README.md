@@ -22,6 +22,28 @@ in gray on black.
 Wear OS renders the face directly. The package contains no executable app code,
 network permissions, ads, or analytics.
 
+## Download and install
+
+[**Download the latest preview APK**](https://github.com/mayflower/daliclock/releases/download/preview/daliclock.apk)
+· [Build details and checksum](https://github.com/mayflower/daliclock/releases/tag/preview)
+
+Enable wireless debugging on your Wear OS 6 watch, pair and connect it with ADB,
+then install the APK and choose **Daliclock** in the watch face picker:
+
+```sh
+adb devices
+adb -s SERIAL install -r daliclock.apk
+```
+
+Replace `SERIAL` with your watch's identifier. Preview builds share a dedicated
+signing key, so you can install updates over an earlier preview. A local debug
+build or Play Store build uses a different key; uninstall it before switching.
+Uninstalling removes the watch face's settings.
+
+The [Build APK workflow](https://github.com/mayflower/daliclock/actions/workflows/apk.yml)
+runs on pushes to `main` and can also be started manually. Successful builds
+update the preview download and keep an APK artifact for 30 days.
+
 ## Build
 
 You need JDK 17, Python 3.13, Android SDK Platform 36, and Build Tools 36.0.0.
