@@ -71,7 +71,7 @@ jobs:
       actions: read
       contents: write
     steps:
-      - name: Publish preview download
+      - name: Publish APK release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -80,7 +80,7 @@ jobs:
         run: |
           gh run download "$RUN_ID" --name daliclock-apk --dir dist
           cat > notes.md <<EOF_NOTES
-          Installable preview for Wear OS 6 or later (API 36).
+          Installable Daliclock APK for Wear OS 6 or later (API 36).
 
           Download daliclock.apk and install it with:
           \`adb -s SERIAL install -r daliclock.apk\`
@@ -93,9 +93,9 @@ jobs:
           Build: https://github.com/$GH_REPO/actions/runs/$RUN_ID
           EOF_NOTES
           if gh release view preview >/dev/null 2>&1; then
-            gh release edit preview --title 'Latest preview' --notes-file notes.md --prerelease
+            gh release edit preview --title 'Daliclock' --notes-file notes.md --prerelease=false --latest
           else
-            gh release create preview --target "$COMMIT" --title 'Latest preview' --notes-file notes.md --prerelease
+            gh release create preview --target "$COMMIT" --title 'Daliclock' --notes-file notes.md --prerelease=false --latest
           fi
           gh release upload preview dist/daliclock.apk dist/daliclock.apk.sha256 --clobber
           gh api --method PATCH "repos/$GH_REPO/git/refs/tags/preview" -f sha="$COMMIT" -F force=true
