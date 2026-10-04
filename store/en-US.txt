@@ -19,7 +19,9 @@ Daliclock is a watch face for watches running Wear OS 6 or later. It needs no ph
 
 After installing, select Daliclock in your watch's watch face picker. Use the watch face editor to change seconds, date and color.
 
-The digits are based on Jamie Zawinski's original XDaliClock artwork. Its copyright and permission notice is included in the app.
+Dali Clock is a very old idea. Steve Capps wrote the original in 1979 for the Xerox Alto and ported it to the first Macintosh in 1984, inspired by the morphing in Peter Foldes' 1974 short film La Faim. In 1991 Jamie Zawinski re-implemented it from scratch for X Windows on Unix as XDaliClock.
+
+Daliclock's digits are based on Zawinski's original XDaliClock artwork. Its copyright and permission notice is included in the app.
 
 Release notes 1.0
 First release with fluid digits, optional seconds and date, three colors and an always-on display.

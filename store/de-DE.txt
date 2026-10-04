@@ -19,7 +19,9 @@ Daliclock ist ein Zifferblatt für Uhren mit Wear OS 6 oder neuer. Es benötigt 
 
 Nach der Installation wählst du Daliclock in der Zifferblattauswahl deiner Uhr aus. Sekunden, Datum und Farbe lassen sich im Zifferblatt-Editor einstellen.
 
-Die Ziffern basieren auf dem Original-Artwork von XDaliClock von Jamie Zawinski. Der zugehörige Urheberrechts- und Erlaubnishinweis ist in der App enthalten.
+Dali Clock ist eine sehr alte Idee. Steve Capps schrieb das Original 1979 für die Xerox Alto und portierte es 1984 auf den ersten Macintosh – inspiriert vom Morphing im Kurzfilm La Faim von Peter Foldes (1974). 1991 entwickelte Jamie Zawinski es für X Windows unter Unix von Grund auf neu als XDaliClock.
+
+Die Ziffern von Daliclock basieren auf Zawinskis Original-Artwork von XDaliClock. Der zugehörige Urheberrechts- und Erlaubnishinweis ist in der App enthalten.
 
 Versionshinweise 1.0
 Erste Version mit fließenden Ziffern, optionalen Sekunden und Datum, drei Farben und Always-on-Anzeige.
