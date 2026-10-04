@@ -122,3 +122,37 @@ def emit_morph_effects(parent, source, current, previous, visible='1 == 1', prev
         stroke = original.find('Stroke')
         copy = element(line, 'Stroke', **stroke.attrib)
         follow(stroke, copy, 'thickness', f'{name}_width_{index}', RIM_WIDTH)
+
+
+def emit_active_digit(parent, geometry, current, previous, following, position, color,
+                      namespace, family, max_digit=9, visible='1 == 1',
+                      previous_visible='1 == 1'):
+    """Enable a digit before its next tick so the native morph has its source.
+
+    The graph paints the current, settled digit during the pre-roll. At the tick
+    its native target animation starts normally, then the identical bitmap takes
+    over. Keep accents and reference owners inside the same enabled branch.
+    """
+    duration_ms = ANIMATION['duration'] * 1000
+    condition = element(parent, 'Condition')
+    name = f'{namespace}_moving'
+    expression = element(element(condition, 'Expressions'), 'Expression', name=name)
+    expression.text = (f'(([MILLISECOND] < {duration_ms:g} && ({current}) != ({previous})) || '
+                       f'([MILLISECOND] >= {duration_ms:g} && ({current}) != ({following})))')
+    branch = element(condition, 'Compare', expression=name)
+    part, _, _ = emit_digit(branch, geometry, current, position, color, True,
+                            namespace, max_digit)
+    emit_morph_effects(branch, part, current, previous, visible, previous_visible)
+    branch.remove(part)
+    branch.append(part)
+    element(part, 'Transform', target='alpha', value=f'({visible} ? 255 : 0)')
+    stable = element(element(condition, 'Default'), 'PartText',
+                     name=f'{namespace}_stable', x=position[0], y=position[1],
+                     width=math.ceil(geometry.box[0]), height=math.ceil(geometry.box[1]))
+    element(stable, 'Transform', target='alpha', value=f'({visible} ? 255 : 0)')
+    text = element(stable, 'Text', align='START')
+    font = element(text, 'BitmapFont', family=family,
+                   size=math.ceil(geometry.box[1]), color=color)
+    template = element(font, 'Template')
+    template.text = '%d'
+    element(template, 'Parameter', expression=current)

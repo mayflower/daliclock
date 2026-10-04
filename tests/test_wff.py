@@ -41,7 +41,14 @@ class ExportTest(unittest.TestCase):
         self.assertNotIn('REFERENCE.seconds', ambient_text)
         for name in ('active_time', 'ambient_time'):
             main = root.find(f".//Group[@name='{name}']")
-            for transform in main.findall('.//Transform'):
+            # Accents now live beside their owners in the digit group.
+            # Only their alpha envelope may depend on sub-minute time; the
+            # hour/minute geometry must still subscribe to discrete targets.
+            transforms = (main.findall('./Transform') + main.findall('.//Line/Transform')
+                          + main.findall('.//Stroke/Transform'))
+            if name == 'ambient_time':
+                transforms = main.findall('.//Transform')
+            for transform in transforms:
                 self.assertNotIn('[SECOND', transform.get('value'))
                 self.assertNotIn('[MILLISECOND', transform.get('value'))
         names = [ref.get('name') for ref in root.findall('.//Reference')]

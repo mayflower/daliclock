@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 import cairosvg
 from daliclock.geometry import load_glyphs, sample_glyphs
 from daliclock.preview import lines_svg
-from daliclock.wff import element as add, emit_digit, emit_morph_effects
+from daliclock.wff import element as add, emit_active_digit
 
 ROOT = Path(__file__).resolve().parents[1]
 HOUR = '([IS_24_HOUR_MODE] ? [HOUR_0_23] : [HOUR_1_12])'
@@ -21,6 +21,12 @@ PREVIOUS_HOUR_24 = '([MINUTE] == 0 && [SECOND] == 0 ? ([HOUR_0_23] + 23) % 24 : 
 PREVIOUS_HOUR = f'([IS_24_HOUR_MODE] ? {PREVIOUS_HOUR_24} : (({PREVIOUS_HOUR_24} + 11) % 12) + 1)'
 PREVIOUS_TIME = [f'floor({PREVIOUS_HOUR} / 10)', f'({PREVIOUS_HOUR} % 10)',
                  f'floor({PREVIOUS_MINUTE} / 10)', f'({PREVIOUS_MINUTE} % 10)']
+NEXT_SECOND = '(([SECOND] + 1) % 60)'
+NEXT_MINUTE = '([SECOND] == 59 ? ([MINUTE] + 1) % 60 : [MINUTE])'
+NEXT_HOUR_24 = '([MINUTE] == 59 && [SECOND] == 59 ? ([HOUR_0_23] + 1) % 24 : [HOUR_0_23])'
+NEXT_HOUR = f'([IS_24_HOUR_MODE] ? {NEXT_HOUR_24} : (({NEXT_HOUR_24} + 11) % 12) + 1)'
+NEXT_TIME = [f'floor({NEXT_HOUR} / 10)', f'({NEXT_HOUR} % 10)',
+             f'floor({NEXT_MINUTE} / 10)', f'({NEXT_MINUTE} % 10)']
 # Active-only decoration in the existing 450-unit layout.
 RING_RADIUS, RING_WIDTH, DOT_SIZE = 217, 1.4, 4
 RING_IDLE, RING_ACTIVE = '#266C79FF', '#806C79FF'
@@ -112,10 +118,11 @@ def clock(parent, geometry, cfg, animated, namespace, color):
         add(fmt, 'Parameter', expression='[MINUTE]')
         return main
     for i, expression in enumerate(TIME):
-        part, _, _ = emit_digit(main, geometry, expression, (cfg['positions'][i], 0), color,
-                               True, f'{namespace}_d{i}', max_digit=(2, 9, 5, 9)[i])
-        if i == 0:
-            add(part, 'Transform', target='alpha', value='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10 ? 255 : 0)')
+        emit_active_digit(main, geometry, expression, PREVIOUS_TIME[i], NEXT_TIME[i],
+                          (cfg['positions'][i], 0), color, f'{namespace}_d{i}',
+                          'active_digits', max_digit=(2, 9, 5, 9)[i],
+                          visible='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10)' if i == 0 else '1 == 1',
+                          previous_visible=f'([IS_24_HOUR_MODE] || {PREVIOUS_HOUR} >= 10)' if i == 0 else '1 == 1')
     colon = add(main, 'PartDraw', name=f'{namespace}_colon', x=187, y=0, width=14, height=144)
     for y in (53, 84):
         dot = add(colon, 'Ellipse', x=3, y=y, width=8, height=8)
@@ -144,6 +151,17 @@ def generate(output):
         cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/ambient_{digit}.png'))
     root = ET.Element('WatchFace', width='450', height='450', clipShape='CIRCLE')
     fonts = add(root, 'BitmapFonts')
+    # Stable active digits use the exact soft strokes of their morph graph.
+    for family, geometry in [('active_digits', main), ('seconds_digits', seconds)]:
+        font = add(fonts, 'BitmapFont', name=family)
+        w, h = map(math.ceil, geometry.box)
+        for digit in range(10):
+            resource = f'{family}_{digit}'
+            svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w * 2}" height="{h * 2}" '
+                   f'viewBox="0 0 {w} {h}">'
+                   + lines_svg(geometry, geometry.points[str(digit)]) + '</svg>')
+            cairosvg.svg2png(bytestring=svg.encode(), write_to=str(output / f'drawable/{resource}.png'))
+            add(font, 'Character', name=str(digit), resource=resource, width=w, height=h, marginRight=0)
     font = add(fonts, 'BitmapFont', name='ambient_digits')
     for digit in range(10):
         add(font, 'Character', name=str(digit), resource=f'ambient_{digit}',
@@ -165,24 +183,19 @@ def generate(output):
     active = group(scene, 'active')
     add(active, 'Variant', mode='AMBIENT', target='alpha', value=0, duration=0)
     decoration(active)
-    effects = group(active, 'time_effects', cfg['main']['x'], cfg['main']['y'], 388, 160)
-    add(effects, 'Transform', target='y', value=f'([CONFIGURATION.show_seconds] == "TRUE" ? {cfg["main"]["y"]} : {cfg["main"]["quiet_y"]})')
-    time_group = clock(active, main, cfg['main'], True, 'active_time', COLOR)
-    for i, (current, previous) in enumerate(zip(TIME, PREVIOUS_TIME)):
-        emit_morph_effects(effects, time_group.find(f"PartDraw[@name='active_time_d{i}']"), current, previous,
-                           visible='([IS_24_HOUR_MODE] || [HOUR_1_12] >= 10)' if i == 0 else '1 == 1',
-                           previous_visible=f'([IS_24_HOUR_MODE] || {PREVIOUS_HOUR} >= 10)' if i == 0 else '1 == 1')
+    clock(active, main, cfg['main'], True, 'active_time', COLOR)
     ampm = text(active, 'ampm', 185, 270, 80, 16, '%s', ['[AMPM_STRING]'])
     add(ampm, 'Transform', target='alpha', value='([IS_24_HOUR_MODE] ? 0 : 255)')
     selection = add(active, 'BooleanConfiguration', id='show_seconds')
     yes = group(add(selection, 'BooleanOption', id='TRUE'), 'seconds_enabled')
     orbit_dot(yes)
-    effects = group(yes, 'seconds_effects', cfg['seconds']['x'], cfg['seconds']['y'], 100, 77)
     sec = group(yes, 'seconds', cfg['seconds']['x'], cfg['seconds']['y'], 100, 77)
     for i, expression in enumerate(['[SECOND_TENS_DIGIT]', '[SECOND_UNITS_DIGIT]']):
-        part, _, _ = emit_digit(sec, seconds, expression, (cfg['seconds']['positions'][i], 0), COLOR, True, f'seconds_d{i}', max_digit=(5, 9)[i])
         previous = f'floor({PREVIOUS_SECOND} / 10)' if i == 0 else f'({PREVIOUS_SECOND} % 10)'
-        emit_morph_effects(effects, part, expression, previous)
+        following = f'floor({NEXT_SECOND} / 10)' if i == 0 else f'({NEXT_SECOND} % 10)'
+        emit_active_digit(sec, seconds, expression, previous, following,
+                          (cfg['seconds']['positions'][i], 0), COLOR,
+                          f'seconds_d{i}', 'seconds_digits', max_digit=(5, 9)[i])
     group(add(selection, 'BooleanOption', id='FALSE'), 'seconds_off')
     selection = add(active, 'BooleanConfiguration', id='show_date')
     date = group(add(selection, 'BooleanOption', id='TRUE'), 'date')

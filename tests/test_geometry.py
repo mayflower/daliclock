@@ -12,7 +12,7 @@ from PIL import Image, ImageChops, ImageFilter
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 from daliclock.geometry import (bezier, interpolate, load_glyphs, mix, sample_glyphs,
-                           validate_geometry, validate_glyphs)
+                           validate_geometry, validate_glyphs, simplify_glyphs, SampledGlyphSet)
 from daliclock.animation import eased_progress
 from daliclock.preview import TRANSITIONS, digit_svg, lines_svg
 
@@ -21,7 +21,7 @@ class GeometryTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.glyphs = load_glyphs(ROOT / 'assets/glyphs/daliclock.json')
-        cls.sampled = sample_glyphs(cls.glyphs, .9, .35)
+        cls.sampled = sample_glyphs(cls.glyphs, .9, .35, simplify=False)
 
     def test_original_xdaliclock_silhouettes(self):
         # Compare rendered exported strokes to the independently stored upstream
@@ -54,6 +54,49 @@ class GeometryTest(unittest.TestCase):
                             self.assertLess(math.dist(points[node], expected), 1e-10)
         for d in range(10):
             self.assertEqual(interpolate(s, d, d, .5), s.points[str(d)])
+
+    def test_simplification_preserves_shared_junctions_and_digit_extrema(self):
+        # The last digit alone has a corner; an optimizer looking only at zero
+        # would erase it. A branch must retain its shared attachment point.
+        points = {str(d): {'a': (5., 5., 1.), 'b': (7., 5., 1.),
+                           'c': (9., 5., 1.), 'd': (11., 5., 1.),
+                           'e': (13., 5., 1.), 'tip': (9., 9., 1.)}
+                  for d in range(10)}
+        points['9']['d'] = (11., 7., 1.)
+        source = SampledGlyphSet((20, 20), points,
+                                 [('a', 'b'), ('b', 'c'), ('c', 'd'),
+                                  ('d', 'e'), ('c', 'tip')], {}, {}, 0.)
+        reduced = simplify_glyphs(source, .35)
+        self.assertNotIn('b', reduced.points['0'])
+        self.assertIn('d', reduced.points['0'])
+        for step in (0, .25, .5, .75, 1):
+            actual = interpolate(reduced, 0, 9, step)
+            validate_geometry(actual, reduced.edges, reduced.box)
+            self.assertEqual(actual['c'], (9., 5., 1.))
+            self.assertEqual(actual['d'], (11., 5. + 2 * step, 1.))
+
+    def test_simplification_keeps_closed_contours(self):
+        points = {str(d): {'a': (5., 5., 1.), 'b': (9., 5., 1.),
+                           'c': (9., 9., 1.), 'd': (5., 9., 1.)}
+                  for d in range(10)}
+        source = SampledGlyphSet((20, 20), points,
+                                 [('a', 'b'), ('b', 'c'), ('c', 'd'), ('d', 'a')],
+                                 {}, {}, 0.)
+        reduced = simplify_glyphs(source, .35)
+        self.assertEqual(reduced.points, points)
+        for p in reduced.points.values():
+            validate_geometry(p, reduced.edges, reduced.box)
+
+    def test_reduced_morphs_keep_source_coordinates_and_bounds(self):
+        reduced = sample_glyphs(self.glyphs, .9, .35)
+        self.assertLessEqual(reduced.error_bound, .35)
+        for a in range(10):
+            for b in range(10):
+                for u in (0, .25, .5, .75, 1):
+                    actual = interpolate(reduced, a, b, u)
+                    source = interpolate(self.sampled, a, b, u)
+                    validate_geometry(actual, reduced.edges, reduced.box)
+                    self.assertEqual(actual, {n: source[n] for n in actual})
 
     def test_viscous_easing_stays_within_exact_targets(self):
         self.assertEqual(eased_progress(0), 0)

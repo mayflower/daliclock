@@ -96,7 +96,11 @@ the image above is a generated preview of the complete face.
 The Python generator turns coordinated digit curves into short, connected WFF
 lines. Each shared point has one native animation owner; adjoining endpoints
 follow it through references. Position and stroke width change together over
-650 ms. Always-on glyphs are rasterized from the same curves at build time.
+650 ms. The generator simplifies all ten digits together while preserving shared
+junctions and limiting contour and stroke-width changes. Unchanged active digits
+use build-rendered images of those same strokes. Shortly before a digit changes,
+its connected lines activate in preparation for the native morph and its accents.
+Always-on uses a separate bitmap-font time field.
 
 - [`assets/glyphs/`](assets/glyphs/) — original outlines and derived digit curves
 - [`config/daliclock.json`](config/daliclock.json) — layout and animation settings

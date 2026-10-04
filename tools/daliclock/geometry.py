@@ -5,6 +5,7 @@ interior difference control points bound the error by 3/4 of their maximum
 norm. Taking the worst of all ten digits also bounds every linear morph.
 """
 
+from collections import defaultdict
 from dataclasses import dataclass
 import json
 import math
@@ -12,6 +13,8 @@ from pathlib import Path
 
 # Dense round strokes overlap: partial coverage keeps their outer edge soft.
 STROKE_ALPHA = 96
+# Larger radius changes introduced visible bumps at constant-width line caps.
+MAX_RADIUS_CHANGE = 1.5
 
 Point = tuple[float, float, float]  # x, y, radius
 
@@ -107,7 +110,7 @@ def validate_glyphs(g):
                 raise ValueError('Broken smooth tangent')
 
 
-def sample_glyphs(glyphs, layout_scale=1.0, tolerance=0.35):
+def sample_glyphs(glyphs, layout_scale=1.0, tolerance=0.35, *, simplify=True):
     if layout_scale <= 0 or tolerance <= 0:
         raise ValueError('Scale and tolerance must be positive')
     points = {str(d): {} for d in range(10)}
@@ -145,6 +148,87 @@ def sample_glyphs(glyphs, layout_scale=1.0, tolerance=0.35):
                             points, list(edges), parameters, sample_ids, worst)
     for digit in points:
         validate_geometry(points[digit], result.edges, result.box)
+    return simplify_glyphs(result, tolerance) if simplify else result
+
+
+def simplify_glyphs(sampled, tolerance):
+    """Collapse degree-two chains using one correspondence for all digits.
+
+    Junctions and endpoints survive. Cumulative worst-digit arc length supplies
+    a shared parameter: the position/radius error then also bounds linear
+    intermediate forms by convexity. Limit radius variation separately because
+    WFF draws a constant-width capsule, not a tapered stroke.
+    """
+    neighbors = defaultdict(list)
+    for a, b in sampled.edges:
+        neighbors[a].append(b)
+        neighbors[b].append(a)
+    visited, edges = set(), []
+    worst = 0.0
+    # Starting at every node also covers a graph consisting only of a cycle.
+    starts = sorted(neighbors, key=lambda n: len(neighbors[n]) == 2)
+    for start in starts:
+        for following in neighbors[start]:
+            if frozenset((start, following)) in visited:
+                continue
+            chain = [start, following]
+            visited.add(frozenset((start, following)))
+            previous, node = start, following
+            while len(neighbors[node]) == 2 and node != start:
+                other = next(n for n in neighbors[node] if n != previous)
+                visited.add(frozenset((node, other)))
+                chain.append(other)
+                previous, node = node, other
+            distance = [0.0]
+            for a, b in zip(chain, chain[1:]):
+                distance.append(distance[-1] + max(
+                    math.dist(p[a], p[b]) for p in sampled.points.values()))
+
+            def reduce(lo, hi):
+                nonlocal worst
+                if hi == lo + 1:
+                    edges.append((chain[lo], chain[hi]))
+                    return
+                length = distance[hi] - distance[lo]
+                error, split_at = -1.0, (lo + hi) // 2
+                for i in range(lo + 1, hi):
+                    u = (distance[i] - distance[lo]) / length if length else 0
+                    deviation = 0.0
+                    for points in sampled.points.values():
+                        actual = points[chain[i]]
+                        expected = mix(points[chain[lo]], points[chain[hi]], u)
+                        deviation = max(deviation, math.dist(actual[:2], expected[:2])
+                                        + abs(actual[2] - expected[2]))
+                    if deviation > error:
+                        error, split_at = deviation, i
+                radius_change = max(
+                    max(p[n][2] for n in chain[lo:hi + 1])
+                    - min(p[n][2] for n in chain[lo:hi + 1])
+                    for p in sampled.points.values())
+                if (error + sampled.error_bound <= tolerance
+                        and radius_change <= MAX_RADIUS_CHANGE
+                        and chain[lo] != chain[hi]):
+                    edges.append((chain[lo], chain[hi]))
+                    worst = max(worst, error)
+                else:
+                    if error + sampled.error_bound <= tolerance:
+                        split_at = (lo + hi) // 2
+                    reduce(lo, split_at)
+                    reduce(split_at, hi)
+
+            reduce(0, len(chain) - 1)
+    retained = {n for edge in edges for n in edge}
+    points = {d: {n: p[n] for n in p if n in retained}
+              for d, p in sampled.points.items()}
+    parameters, sample_ids = {}, {}
+    for curve, ids in sampled.sample_ids.items():
+        kept = [(n, t) for n, t in zip(ids, sampled.parameters[curve]) if n in retained]
+        sample_ids[curve] = [n for n, t in kept]
+        parameters[curve] = [t for n, t in kept]
+    result = SampledGlyphSet(sampled.box, points, edges, parameters, sample_ids,
+                             sampled.error_bound + worst)
+    for p in points.values():
+        validate_geometry(p, edges, result.box)
     return result
 
 
