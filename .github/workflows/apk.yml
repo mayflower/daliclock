@@ -61,6 +61,29 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 30
+      - name: Build signed Play bundle
+        env:
+          UPLOAD_KEYSTORE: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          DALICLOCK_UPLOAD_STORE_PASSWORD: ${{ secrets.UPLOAD_STORE_PASSWORD }}
+          DALICLOCK_UPLOAD_KEY_PASSWORD: ${{ secrets.UPLOAD_KEY_PASSWORD }}
+          DALICLOCK_UPLOAD_KEY_ALIAS: daliclock-upload
+        run: |
+          test -n "$UPLOAD_KEYSTORE"
+          export DALICLOCK_UPLOAD_STORE_FILE="$RUNNER_TEMP/daliclock-upload.jks"
+          printf '%s' "$UPLOAD_KEYSTORE" | base64 --decode > "$DALICLOCK_UPLOAD_STORE_FILE"
+          chmod 600 "$DALICLOCK_UPLOAD_STORE_FILE"
+          ./gradlew --no-daemon :watchface:bundleRelease -PrequireReleaseSigning=true -PpythonExecutable="$(command -v python)"
+          jarsigner -verify watchface/build/outputs/bundle/release/watchface-release.aab
+          rm -f "$DALICLOCK_UPLOAD_STORE_FILE"
+          mkdir -p play
+          cp watchface/build/outputs/bundle/release/watchface-release.aab play/daliclock.aab
+      - name: Upload Play bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: daliclock-aab
+          path: play/daliclock.aab
+          if-no-files-found: error
+          retention-days: 30
 
   publish:
     needs: build
