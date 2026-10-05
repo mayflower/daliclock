@@ -5,8 +5,10 @@ Melting digits for your wrist. A Wear OS watch face with the original
 and a seconds dot that glides around the dial.
 
 <p align="center">
-  <img src="assets/readme/preview.png" width="450" alt="Daliclock showing 09:08 with white serif digits over a blue and gold landscape, inside a thin circular dial.">
+  <img src="assets/readme/melting.gif" width="450" alt="Daliclock running in the Wear OS emulator: gold digits melt from 12:08 to 12:09 as the seconds roll over, above a blue and gold landscape.">
 </p>
+
+Recorded in the Wear OS emulator at normal speed.
 
 The digits stretch and flow into the next time, with a brief blue-white highlight
 and a faint trailing image. In always-on mode, only the hours and minutes remain,
